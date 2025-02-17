@@ -1,0 +1,123 @@
+[
+	{
+		"name": "plants_2020",
+		"file": "Raw/eGRID2020.xlsx",
+		"kwargs": {
+			"sheet_name": "eGRID2020",
+			"header": 0,
+			"engine": "openpyxl"
+		}
+	},
+	{
+		"name": "plants_2021",
+		"file": "Raw/eGRID2021_data.csv",
+		"kwargs": {
+			"header": 1
+		}
+	},
+	{
+		"name": "transmission",
+		"file": "Raw/needs_v6_transmission.csv",
+		"kwargs": {
+		}
+	},
+	{
+		"name": "impacts_parsed",
+		"file": "Raw/needs_v617_parsed.csv",
+		"kwargs": {
+		}
+	},
+	{
+		"name": "impacts_input",
+		"file": "Raw/needs_v621_inputs.csv",
+		"kwargs": {
+			"encoding": "latin1"
+		}
+	},
+	{
+		"name": "impacts",
+		"file": "Raw/NEEDS v621_06-21-2022.csv",
+		"kwargs": {
+			"header": 0
+		}
+	},
+	{
+		"name": "onshore_wind_generation_profile",
+		"file": "Raw/table_4-39_onshore.csv",
+		"kwargs": {
+			"header": 0
+		}
+	},
+	{
+		"name": "load_profile",
+		"file": "Raw/table_2-2.csv",
+		"kwargs": {
+			"header": 0
+		}
+	},
+	{
+		"name": "onshore_wind_capacity",
+		"file": "Raw/table_4-38.csv",
+		"kwargs": {
+			"header": 0
+		}
+	},
+	{
+		"name": "onshore_wind_capital_cost",
+		"file": "Raw/table_4-40.csv",
+		"kwargs": {
+			"header": 0
+		}
+	},
+	{
+		"name": "solar_regional_capacity",
+		"file": "Raw/table_4-41.csv",
+		"kwargs": {
+			"header": 0
+		}
+	},
+	{
+		"name": "solar_generation_profile",
+		"file": "Raw/table_4-43.csv",
+		"kwargs": {
+			"header": 0
+		}
+	},
+	{
+		"name": "solar_capital_cost",
+		"file": "Raw/table_4-44.csv",
+		"kwargs": {
+			"header": 0
+		}
+	},
+	{
+		"name": "solar_capacity_factor",
+		"file": "Raw/table_4-46.csv",
+		"kwargs": {
+			"header": 0
+		}
+	},
+	{
+		"name": "regional_cost",
+		"file": "Raw/table_4-15.xlsx",
+		"kwargs": {
+			"sheet_name": "Table 4-15",
+			"header": 0
+		}
+	},
+	{
+		"name": "unit_cost",
+		"file": "Raw/table_4-16.xlsx",
+		"kwargs": {
+			"sheet_name": "Table 4-16",
+			"header": 0
+		}
+	},
+	{
+		"name": "rps",
+		"file": "Raw/RPS.csv",
+		"kwargs": {
+			"header": 1
+		}
+	}
+]
