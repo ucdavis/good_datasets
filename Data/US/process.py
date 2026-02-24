@@ -564,7 +564,7 @@ def format_profiles(profiles, verbose = False):
     for idx, row in profiles['hydro'].iterrows():
 
         profile = row['Profile']
-        capacity = min(row['Profile'])
+        capacity = max(row['Profile'])
 
         data = nested_add(
             data, row['Profile'] / capacity, f"{row['Region']}:hydro"

@@ -51,8 +51,9 @@ def process(**kwargs):
 	Paths and parameters
 	'''
 
-	module_path = kwargs['path'] + 'process.py'
-	codex_path = kwargs['path'] + 'codex.json'
+	module_path = kwargs['path'] + '/process.py'
+	codex_path = kwargs['path'] + '/codex.json'
+	output_path = kwargs['path'] + '/Processed/'
 
 	'''
 	Loading processing module
@@ -72,35 +73,58 @@ def process(**kwargs):
 	'''
 	src.utilities.cprint('\n' + 'Processing Data' + '\n', kwargs['verbose'])
 
-	module = src.inputs.write_data.load_module(module_path)
-
-	installed = module.build_installed_plants(data, verbose = kwargs['verbose'])
-	optional = module.build_optional_plants(data, verbose = kwargs['verbose'])
+	installed = module.build_installed_assets(data, verbose = kwargs['verbose'])
+	optional = module.build_optional_assets(data, verbose = kwargs['verbose'])
 	lines = module.build_lines(data, verbose = kwargs['verbose'])
 	profiles = module.build_profiles(data, verbose = kwargs['verbose'])
+	policies = module.build_policies(data, verbose = kwargs['verbose'])
 
 	'''
 	Formatting processed data
 	'''
 	src.utilities.cprint('\n' + 'Formatting Data' + '\n', kwargs['verbose'])
 
-	module = src.inputs.write_data.load_module(module_path)
+	profiles_data, scale = module.format_profiles(
+	    profiles, verbose = kwargs['verbose']
+	)
 
-	installed_data = module.format_installed_plants(installed, verbose = kwargs['verbose'])
-	optional_data = module.format_optional_plants(optional, verbose = kwargs['verbose'])
-	lines_data = module.format_lines(lines, verbose = kwargs['verbose'])
-	profiles_data = module.format_profiles(profiles, verbose = kwargs['verbose'])
+	installed_data = module.format_installed_assets(
+	    installed, scale, verbose = kwargs['verbose']
+	)
+
+	optional_data = module.format_optional_assets(
+	    optional, verbose = kwargs['verbose']
+	)
+
+	lines_data = module.format_lines(
+	    lines, verbose = kwargs['verbose']
+	)
+
+	policies_data = module.format_policies(
+	    policies, verbose = kwargs['verbose']
+	)
 
 	'''
 	Writing JSONs
 	'''
 	src.utilities.cprint('\n' + 'Writing Data' + '\n', kwargs['verbose'])
 
-	module = src.inputs.write_data.load_module(module_path)
+	module.write_assets(
+	    {**installed_data, **optional_data},
+	    output_path = output_path, verbose = kwargs['verbose']
+	)
 
-	module.write_plants(installed_data + optional_data, verbose = kwargs['verbose'])
-	module.write_lines(lines_data, verbose = kwargs['verbose'])
-	module.write_profiles(profiles_data, verbose = kwargs['verbose'])
+	module.write_lines(
+	    lines_data, output_path = output_path, verbose = kwargs['verbose']
+	)
+
+	module.write_profiles(
+	    profiles_data, output_path = output_path, verbose = kwargs['verbose']
+	)
+
+	module.write_policies(
+	    policies_data, output_path = output_path, verbose = kwargs['verbose']
+	)
 
 
 if __name__ == "__main__":
