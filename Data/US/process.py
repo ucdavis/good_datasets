@@ -1,935 +1,912 @@
-import os
-import time
+'''
+Build GOOD 2.x input data for the United States from EPA and EIA sources.
+
+Run through ``python build.py`` at the repository root. The steps are:
+
+1. ``build_*`` turn the raw tables listed in ``codex.json`` into tidy frames.
+2. ``format_*`` turn those into GOOD 2.x components (dictionaries).
+3. ``write_*`` save them under ``Data/US/Processed/``.
+
+Units follow GOOD 2.x: MW, MWh, hours, $/MWh for variable costs, $/MW for
+overnight capital costs, $/MW-yr for fixed O&M, kg/MWh for emission rates and
+Btu/kWh for heat rates. Every value this module introduces rather than reads
+from a source table is in ``PARAMETERS`` with its source.
+
+Hour columns are always selected by name. Selecting them by position broke
+twice: the onshore wind CSV has an extra index column, so every day started
+with "Day Of Month" (25 values per day), and the hydro table lost its first
+hour. Positional selection also shifts under pandas 3, where
+``groupby().apply()`` no longer passes grouping columns.
+'''
+
 import json
+import os
+import re
+import time
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
-name_to_code = {
-    'Alabama': 'AL',
-    'Nebraska': 'NE',
-    'Alaska': 'AK',
-    'Nevada': 'NV',
-    'Arizona': 'AZ',
-    'New Hampshire': 'NH',
-    'Arkansas': 'AR',
-    'New Jersey': 'NJ',
-    'California': 'CA',
-    'New Mexico': 'NM',
-    'Colorado': 'CO',
-    'New York': 'NY',
-    'Connecticut': 'CT',
-    'North Carolina': 'NC',
-    'Delaware': 'DE',
-    'North Dakota': 'ND',
-    'District Of Columbia': 'DC',
-    'District of Columbia': 'DC',
-    'Ohio': 'OH',
-    'Florida': 'FL',
-    'Oklahoma': 'OK',
-    'Georgia': 'GA',
-    'Oregon': 'OR',
-    'Hawaii': 'HI',
-    'Pennsylvania': 'PA',
-    'Idaho': 'ID',
-    'Puerto Rico': 'PR',
-    'Illinois': 'IL',
-    'Rhode Island': 'RI',
-    'Indiana': 'IN',
-    'South Carolina': 'SC',
-    'Iowa': 'IA',
-    'South Dakota': 'SD',
-    'Kansas': 'KS',
-    'Tennessee': 'TN',
-    'Kentucky': 'KY',
-    'Texas': 'TX',
-    'Louisiana': 'LA',
-    'Utah': 'UT',
-    'Maine': 'ME',
-    'Vermont': 'VT',
-    'Maryland': 'MD',
-    'Virginia': 'VA',
-    'Massachusetts': 'MA',
-    'Virgin Islands': 'VI',
-    'Michigan': 'MI',
-    'Washington': 'WA',
-    'Minnesota': 'MN',
-    'West Virginia': 'WV',
-    'Mississippi': 'MS',
-    'Wisconsin': 'WI',
-    'Missouri': 'MO ',
-    'Wyoming': 'WY',
-    'Montana': 'MT',
+FORMAT_VERSION = 2
+
+HOURS = 8760
+LB_TO_KG = 0.453592
+
+STATE_CODES = {
+    'Alabama': 'AL', 'Alaska': 'AK', 'Arizona': 'AZ', 'Arkansas': 'AR', 'California': 'CA',
+    'Colorado': 'CO', 'Connecticut': 'CT', 'Delaware': 'DE', 'District Of Columbia': 'DC',
+    'District of Columbia': 'DC', 'Florida': 'FL', 'Georgia': 'GA', 'Hawaii': 'HI', 'Idaho': 'ID',
+    'Illinois': 'IL', 'Indiana': 'IN', 'Iowa': 'IA', 'Kansas': 'KS', 'Kentucky': 'KY',
+    'Louisiana': 'LA', 'Maine': 'ME', 'Maryland': 'MD', 'Massachusetts': 'MA', 'Michigan': 'MI',
+    'Minnesota': 'MN', 'Mississippi': 'MS', 'Missouri': 'MO', 'Montana': 'MT', 'Nebraska': 'NE',
+    'Nevada': 'NV', 'New Hampshire': 'NH', 'New Jersey': 'NJ', 'New Mexico': 'NM', 'New York': 'NY',
+    'North Carolina': 'NC', 'North Dakota': 'ND', 'Ohio': 'OH', 'Oklahoma': 'OK', 'Oregon': 'OR',
+    'Pennsylvania': 'PA', 'Puerto Rico': 'PR', 'Rhode Island': 'RI', 'South Carolina': 'SC',
+    'South Dakota': 'SD', 'Tennessee': 'TN', 'Texas': 'TX', 'Utah': 'UT', 'Vermont': 'VT',
+    'Virgin Islands': 'VI', 'Virginia': 'VA', 'Washington': 'WA', 'West Virginia': 'WV',
+    'Wisconsin': 'WI', 'Wyoming': 'WY',
+}
+'''State name to USPS code. Missouri was "MO " (trailing space) before 2.0, so its RPS matched nothing.'''
+
+PARAMETERS = {
+    'cost_vintage': {
+        'value': '2023',
+        'source': 'EPA Platform v6 Table 4-16 vintage used for new wind and solar costs (2016$).',
+    },
+    'renewable_capital_charge_rate': {
+        'value': 0.0978,
+        'source': 'EPA Platform v6 Table 10-9, blended real capital charge rate for wind, solar and '
+                  'geothermal, 2023.',
+    },
+    'real_discount_rate': {
+        'value': 0.0746,
+        'source': 'Real rate at which a 20-year capital recovery factor equals the 9.78% charge rate '
+                  '(EPA Platform v6 Tables 10-9 and 10-12).',
+    },
+    'capacity_credit': {
+        'value': {'wind': 0.15, 'solar': 0.10, 'battery': 1.0, 'pumped hydro': 1.0},
+        'source': 'Wind and solar are PLACEHOLDERS: EPA Platform v6 Tables 4-21 and 4-32 give 0-90% '
+                  'ranges that fall with penetration. Storage: Table 4-35 (100%).',
+    },
+    'new_battery': {
+        'value': {'capex_cost': 1_977_000.0, 'fom_cost': 35_000.0, 'operating_cost': 7.1,
+                  'duration': 4.0, 'round_trip_efficiency': 0.85, 'lifetime': 15.0},
+        'source': 'EPA Platform v6 Table 4-35 (AEO 2018), 2023 vintage, 2016$: $1,977/kW for a 4-hour '
+                  'system, $35/kW-yr FOM, $7.1/MWh VOM, 85% efficiency. Lifetime is an ASSUMPTION.',
+    },
+    'existing_battery': {
+        'value': {'default_duration': 2.0, 'round_trip_efficiency': 0.85},
+        'source': 'Duration per plant from EIA-860 2021 Schedule 3-4 (energy / nameplate power); '
+                  'the default is the fleet median for plants without a match. Efficiency as for new '
+                  'batteries.',
+    },
+    'pumped_hydro': {
+        'value': {'duration': 10.0, 'round_trip_efficiency': 0.80},
+        'source': 'PLACEHOLDER: EIA-860 does not report pumped-storage energy capacity.',
+    },
+    'hydro': {
+        'value': {'energy_budget_window': 24, 'capacity_factor_without_profile': 0.4},
+        'source': 'Monthly capacity factors from capacity_factor.csv become a daily energy budget; '
+                  'regions without that table use a flat 0.4 (ASSUMPTION).',
+    },
+    'transmission_loss': {
+        'value': {'WECC': 0.028, 'other': 0.024},
+        'source': 'EPA Platform v6 section 3.3.4.',
+    },
+    'fuel_cost_targets': {
+        'value': {'Coal': 23.0, 'Oil': 32.0},
+        'source': 'Calibration targets for mean fuel plus variable O&M cost ($/MWh) carried over from '
+                  'GOOD 1.x; source not recorded. Nuclear is no longer rescaled (see '
+                  'assign_fuel_costs).',
+    },
+    'fill_seed': {
+        'value': 0,
+        'source': 'Seed for sampling fill-in fuel and VOM costs, so builds are reproducible.',
+    },
 }
 
-class_assignment = {}
+RENEWABLE_PLANT_TYPES = {
+    'Onshore Wind', 'Offshore Wind', 'Solar PV', 'Solar Thermal', 'Geothermal', 'Biomass', 'Landfill Gas',
+}
+'''Plant types flagged ``renewable``. Offshore wind, biomass and landfill gas were missing before 2.0.
+RPS eligibility differs by state; review for state-specific studies.'''
 
-# Build
+MUST_RUN_PLANT_TYPES = {'Geothermal'}
 
-def build_installed_assets(data, verbose = False):
+TYPES = {
+    'Hydro': 'hydro',
+    'Geothermal': 'geothermal',
+    'Onshore Wind': 'wind',
+    'Offshore Wind': 'wind',
+    'Solar PV': 'solar',
+    'Solar Thermal': 'solar',
+    'Pumped Storage': 'storage',
+    'Energy Storage': 'storage',
+    'New Battery Storage': 'storage',
+}
+
+FUELS = {
+    'Coal': 'coal', 'IMPORT': 'import', 'Oil': 'oil', 'NaturalGas': 'natural gas', 'Hydro': 'hydro',
+    'Non-Fossil': 'non-fossil', 'MSW': 'waste', 'Geothermal': 'geothermal', 'Wind': 'wind',
+    'Fwaste': 'waste', 'Biomass': 'biomass', 'LF Gas': 'landfill gas', 'Pumps': 'pump hydro',
+    'Solar': 'solar', 'Tires': 'tires', 'EnerStor': 'battery', 'Nuclear': 'nuclear',
+}
+
+EMISSIONS = {'nox': 'PLNOXRTA', 'so2': 'PLSO2RTA', 'co2': 'PLCO2RTA', 'ch4': 'PLCH4RTA', 'n2o': 'PLN2ORTA',
+             'pm': 'PLPMTRO'}
+
+
+def parameter(name):
+
+    return PARAMETERS[name]['value']
+
+
+def _print(string, disp=True):
+
+    if disp:
+
+        print(string, flush=True)
+
+
+def _numeric(series):
+    '''Numbers stored as text with thousands separators and padding, such as " 34,807 ".'''
+
+    return pd.to_numeric(series.astype(str).str.replace(',', '').str.strip(), errors='coerce')
+
+
+def _hour_columns(frame, prefix):
+    '''Hour columns in numeric order, matched by name ("Hour01", "Hour 1", "Hour_0", ...).'''
+
+    pattern = re.compile(rf'^{re.escape(prefix)}\s*_?(\d+)$')
+    columns = [(int(m.group(1)), c) for c in frame.columns if (m := pattern.match(str(c)))]
+
+    return [c for _, c in sorted(columns)]
+
+
+def profile_key(region, kind, resource_class=None):
+    '''The one place profile keys are made; assets and profiles must agree.'''
+
+    if kind in ('load', 'hydro'):
+
+        return f'{region}:{kind}'
+
+    return f'{region}:{kind}:{resource_class}'
+
+
+# ============================================================================ build
+
+def build_installed_assets(data, rng=None, verbose=False):
 
     t0 = time.time()
+    rng = rng if rng is not None else np.random.default_rng(parameter('fill_seed'))
 
-     # Merging power plant data with impacts data
-    # print('1', np.around(time.time() - t0, 4))
     plants = merging_data(data['plants_2021'], data['impacts_parsed'])
-    # print('2', np.around(time.time() - t0, 4))
+    plants = assign_fuel_costs(plants, rng)
 
-    # Assigning and adjusting fuel costs
-    plants = assign_fuel_costs(plants)
-    # print('3', np.around(time.time() - t0, 4))
-    plants = adjust_coal_generation_cost(plants)
-    # print('4', np.around(time.time() - t0, 4))
-    plants = adjust_oil_generation_cost(plants)
-    # print('5', np.around(time.time() - t0, 4))
-    plants = adjust_nuclear_generation_cost(plants)
-    # print('6', np.around(time.time() - t0, 4))
+    for fuel, target in parameter('fuel_cost_targets').items():
 
-    # Filling missing fuel costs
+        plants = rescale_mean_cost(plants, fuel, target)
+
     plants = assign_em_rates(plants, data['plants_2020'])
-    # print('7', np.around(time.time() - t0, 4))
 
-    _print(f'Installed assets built: {time.time() - t0:.4} seconds', disp = verbose)
+    _print(f'Installed assets built: {time.time() - t0:.1f} s', disp=verbose)
 
     return plants
 
-def build_optional_assets(data, verbose = False):
+
+def build_optional_assets(data, verbose=False):
+    '''Candidate wind and solar sites by region, state, resource class and cost class ($/kW).'''
 
     t0 = time.time()
 
-    capex = {
-        'capacity': {},
-        'cost': {},
+    capacity = {
+        'wind': _fill_region_state(data['onshore_wind_capacity']),
+        'solar': _fill_region_state(data['solar_regional_capacity']),
     }
 
-    capex['capacity']['wind'], capex['capacity']['solar'] = ffill_ren_cap(
-        data['onshore_wind_capacity'], data['solar_regional_capacity']
-        )
+    adders = {
+        'wind': _fill_region_state(data['onshore_wind_capital_cost']),
+        'solar': _fill_region_state(data['solar_capital_cost']),
+    }
+
+    base, fom = base_capital_costs(data['unit_cost'], data['regional_cost'])
+
+    cost = {kind: add_base_cost(adders[kind], base[kind]) for kind in ('wind', 'solar')}
+
+    _print(f'Optional assets built: {time.time() - t0:.1f} s', disp=verbose)
+
+    return {'capacity': capacity, 'cost': cost, 'fom': fom}
 
 
-    capex['cost']['wind'], capex['cost']['solar']  = ffill_ren_cost(
-        data['onshore_wind_capital_cost'], data['solar_capital_cost']
-        )
-    
-    capex['cost'] = renewable_transmission_cost(
-        data['unit_cost'], data['regional_cost'], capex['cost']
-        )
-
-    _print(f'Optional assets built: {time.time() - t0:.4} seconds', disp = verbose)
-
-    return capex
-
-def build_lines(data, verbose = False):
+def build_lines(data, verbose=False):
 
     t0 = time.time()
 
-    capacity = pd.DataFrame(
-        data['transmission'], columns=["From", "To", "Capacity TTC (MW)"]
-        )
-   
-    cost = pd.DataFrame(
-        data['transmission'], columns=["From", "To", "Transmission Tariff (2016 mills/kWh)"]
-        )
-    
-    # Create a pivot table to convert the DataFrame into a matrix
-    capacity = capacity.pivot(
-        index="From", columns="To", values="Capacity TTC (MW)"
-        )
-    
-    cost = cost.pivot(
-        index="From", columns="To", values="Transmission Tariff (2016 mills/kWh)"
-        )
-    
-    # If there are missing values (NaN) in the matrix, you can fill them with 0
-    capacity = capacity.fillna(0)
-    cost = cost.fillna(0)
+    table = data['transmission']
 
-    _print(f'Lines built: {time.time() - t0:.4} seconds', disp = verbose)
+    capacity = table.pivot(index='From', columns='To', values='Capacity TTC (MW)').fillna(0)
+    cost = table.pivot(index='From', columns='To', values='Transmission Tariff (2016 mills/kWh)').fillna(0)
+
+    _print(f'Lines built: {time.time() - t0:.1f} s', disp=verbose)
 
     return {'capacity': capacity, 'cost': cost}
 
-def build_profiles(data, verbose = False):
+
+def build_profiles(data, verbose=False):
 
     t0 = time.time()
 
-    profiles = {}
+    profiles = {
+        'wind': resource_profiles(data['onshore_wind_generation_profile']),
+        'solar': resource_profiles(data['solar_generation_profile']),
+        'load': load_profiles(data['load_profile']),
+        'hydro': hydro_profiles(data['hydro']),
+    }
 
-    profiles['wind'] = long_wide(data['onshore_wind_generation_profile'])
-    profiles['solar'] = long_wide(data['solar_generation_profile'])
-    profiles['load'] = long_wide_load(data['load_profile'])
-    profiles['hydro'] = long_wide_hydro(data['hydro'])
-
-    _print(f'Profiles built: {time.time() - t0:.4} seconds', disp = verbose)
+    _print(f'Profiles built: {time.time() - t0:.1f} s', disp=verbose)
 
     return profiles
 
-def build_policies(data, verbose = False):
+
+def build_policies(data, verbose=False):
 
     t0 = time.time()
 
-    policies = {}
+    policies = {'rps': build_rps(data['rps'])}
 
-    policies['rps'] = build_rps(data['rps'])
-
-    _print(f'Policies built: {time.time() - t0:.4} seconds', disp = verbose)
+    _print(f'Policies built: {time.time() - t0:.1f} s', disp=verbose)
 
     return policies
 
-# Format
 
-def format_installed_assets(assets, scale, verbose = False):
+def build_storage_durations(data, verbose=False):
+    '''Battery duration (h) by ORIS plant code from EIA-860 Schedule 3-4.'''
 
     t0 = time.time()
 
-    non_dispatchable_types = ["Geothermal", "Onshore Wind", "Solar PV", "Solar Thermal"]
+    table = data['energy_storage']
+    table = table[table['Technology'] == 'Batteries'].copy()
+    table['energy'] = _numeric(table['Nameplate Energy Capacity (MWh)'])
+    table['power'] = _numeric(table['Nameplate Capacity (MW)'])
+    table = table.dropna(subset=['energy', 'power'])
+    table = table[table['power'] > 0]
 
-    tags = {
-        'Hydro': 'hydro',
-        'Geothermal': 'geothermal',
-        'Onshore Wind': 'wind',
-        'Pumped Storage': 'storage',
-        'Solar PV': 'solar',
-        'Solar Thermal': 'solar',
-        'Energy Storage': 'storage',
-        'Offshore Wind': 'wind',
-        'New Battery Storage': 'storage',
+    totals = table.groupby('Plant Code')[['energy', 'power']].sum()
+    durations = (totals['energy'] / totals['power']).to_dict()
+
+    _print(f'Storage durations built: {time.time() - t0:.1f} s', disp=verbose)
+
+    return {int(k): float(v) for k, v in durations.items()}
+
+
+# ============================================================================ profiles
+
+def resource_profiles(table):
+    '''
+    Wind or solar profiles (per-unit) by region, state and resource class.
+
+    Columns are found by name, and rows are put in calendar order before
+    flattening, so each profile has exactly 8,760 values.
+    '''
+
+    hours = _hour_columns(table, 'Hour')
+    day = 'Day Of Month' if 'Day Of Month' in table.columns else 'Day of Month'
+
+    rows = []
+
+    for (region, state, resource_class), group in table.groupby(['Region Name', 'State Name', 'Resource Class']):
+
+        group = group.sort_values(['Month', day])
+        values = group[hours].apply(_numeric).to_numpy(dtype=float).ravel() / 1000  # kWh/MW -> MWh/MW
+
+        rows.append({'Region Name': region, 'State Name': state, 'Resource Class': int(resource_class),
+                     'Profile': values})
+
+    return pd.DataFrame(rows)
+
+
+def load_profiles(table):
+    '''Hourly demand (MW) by region.'''
+
+    hours = _hour_columns(table, 'Hour')
+    rows = []
+
+    for region, group in table.groupby('Region'):
+
+        group = group.assign(Month=_numeric(group['Month']), Day=_numeric(group['Day'])).sort_values(['Month', 'Day'])
+        values = group[hours].apply(_numeric).to_numpy(dtype=float).ravel()
+
+        rows.append({'Region': region, 'Profile': values})
+
+    return pd.DataFrame(rows)
+
+
+def hydro_profiles(table):
+    '''Hourly hydro capacity factors by region (Hour_0 to Hour_8759).'''
+
+    table = table[table['PlantType'] == 'Hydro']
+    hours = _hour_columns(table, 'Hour')
+
+    return pd.DataFrame([
+        {'Region': row['Region'], 'Profile': row[hours].to_numpy(dtype=float)}
+        for _, row in table.iterrows()
+    ])
+
+
+def _check_length(key, values):
+
+    if len(values) != HOURS:
+
+        raise ValueError(f'profile {key!r} has {len(values)} values, expected {HOURS}')
+
+    return values
+
+
+def potential_by_class(capacity):
+    '''Total candidate capacity (MW) by (region, resource class), summed over states and cost classes.'''
+
+    classes = _cost_class_columns(capacity)
+    total = capacity[classes].apply(_numeric).sum(axis=1)
+
+    return total.groupby([capacity['IPM Region'], capacity['Resource Class'].astype(int)]).sum().to_dict()
+
+
+def format_profiles(profiles, potential, verbose=False):
+    '''
+    Profiles keyed by ``profile_key``, and the peak demand of each region (MW).
+
+    Wind and solar get one profile per resource class, averaged over the
+    states a region spans (weighted by candidate capacity), and a ``mean``
+    profile for existing plants, weighted the same way across classes.
+    Existing plants' resource classes are not in the source data; before
+    2.0 they all took whichever class appeared first.
+    '''
+
+    t0 = time.time()
+
+    data = {}
+    peak = {}
+
+    for kind in ('wind', 'solar'):
+
+        table = profiles[kind]
+        by_region = {}
+
+        for (region, resource_class), group in table.groupby(['Region Name', 'Resource Class']):
+
+            stacked = np.vstack(group['Profile'].to_list())
+            profile = _check_length(profile_key(region, kind, resource_class), stacked.mean(axis=0))
+            weight = potential[kind].get((region, int(resource_class)), 0.0)
+
+            data[profile_key(region, kind, resource_class)] = profile
+            by_region.setdefault(region, []).append((profile, weight))
+
+        for region, entries in by_region.items():
+
+            weights = np.array([w for _, w in entries])
+            weights = weights if weights.sum() > 0 else np.ones(len(entries))
+            stacked = np.vstack([p for p, _ in entries])
+
+            # Elementwise multiply and sum rather than a matrix product: BLAS libraries
+            # differ between platforms, and their rounding differences changed results.
+            data[profile_key(region, kind, 'mean')] = (stacked * weights[:, None]).sum(axis=0) / weights.sum()
+
+    for _, row in profiles['load'].iterrows():
+
+        values = _check_length(profile_key(row['Region'], 'load'), np.asarray(row['Profile'], dtype=float))
+        peak[row['Region']] = float(values.max())
+        data[profile_key(row['Region'], 'load')] = values / values.max()
+
+    for _, row in profiles['hydro'].iterrows():
+
+        values = _check_length(profile_key(row['Region'], 'hydro'), np.asarray(row['Profile'], dtype=float))
+        data[profile_key(row['Region'], 'hydro')] = np.clip(values, 0.0, 1.0)
+
+    _print(f'Profiles formatted: {time.time() - t0:.1f} s', disp=verbose)
+
+    return data, peak
+
+
+# ============================================================================ assets
+
+def _emissions(row):
+
+    return {key: float(np.nan_to_num(row[column])) * LB_TO_KG for key, column in EMISSIONS.items()}
+
+
+def _storage_fields(row, durations):
+
+    fuel = FUELS.get(row['FuelType'], '')
+
+    if fuel == 'pump hydro' or row['PlantType'] == 'Pumped Storage':
+
+        spec = parameter('pumped_hydro')
+        duration = spec['duration']
+
+    else:
+
+        spec = parameter('existing_battery')
+        duration = durations.get(_oris(row), spec['default_duration'])
+
+    one_way = float(np.sqrt(spec['round_trip_efficiency']))
+
+    return {
+        'duration': float(duration),
+        'charge_efficiency': one_way,
+        'discharge_efficiency': one_way,
+        'capacity_credit': parameter('capacity_credit')['pumped hydro' if fuel == 'pump hydro' else 'battery'],
     }
 
-    fuels = {
-        'Coal': 'coal',
-        'IMPORT': 'import',
-        'Oil': 'oil',
-        'NaturalGas': 'natural gas',
-        'Hydro': 'hydro',
-        'Non-Fossil': 'non-fossil',
-        'MSW': 'waste',
-        'Geothermal': 'geothermal',
-        'Wind': 'wind',
-        'Fwaste': 'waste',
-        'Biomass': 'biomass',
-        'LF Gas': 'waste',
-        'Pumps': 'pump hydro',
-        'Solar': 'solar',
-        'Tires': 'tires',
-        'EnerStor': 'battery',
-        'Nuclear': 'nuclear',
-    }
 
-    classes = {
-        'generator': 'Producer',
-        'hydro': 'Producer',
-        'geothermal': 'Producer',
-        'solar': 'Load',
-        'wind': 'Load',
-        'storage': 'Store',
-    }
+def _oris(row):
+
+    value = row.get('ORISPL')
+
+    return int(value) if value is not None and not pd.isna(value) else None
+
+
+def format_installed_assets(assets, peak, profiles, durations, verbose=False):
+    '''Existing plants and regional base loads as GOOD 2.x components.'''
+
+    t0 = time.time()
+
+    credit = parameter('capacity_credit')
+    hydro = parameter('hydro')
 
     data = {}
 
     for idx, row in assets.iterrows():
 
-        dispatchable = True
-        renewable = False
+        plant_type = row['PlantType']
+        kind = TYPES.get(plant_type, 'generator')
+        region = row['RegionName']
 
-        if row['PlantType'] in non_dispatchable_types:
-
-            dispatchable = False
-            renewable = True
-
-        plant_type = tags.get(row['PlantType'], 'generator')
-
-        if plant_type == "hydro":
-
-            capacity_factor = .4
-
-        else:
-
-            capacity_factor = 1
-
-        profile = f"{row['RegionName']}:{plant_type}:"
-
-        data[f'installed_{idx}'] = {
-            'oris_code': (
-                int(np.nan_to_num(row['ORISPL'])) if row['ORISPL'] is not np.nan else 'none',
-                )[0],
-            'egrid_id': row['UniqueID'] if row['UniqueID'] is not np.nan else 'none',
-            'type': plant_type,
-            'fuel': fuels[row['FuelType']],
-            '_class': classes[plant_type],
-            'profile': profile,
-            'region': row['RegionName'],
-            'jurisdiction': name_to_code[row['StateName']],
+        asset = {
+            'oris_code': _oris(row) if _oris(row) is not None else 'none',
+            'egrid_id': row['UniqueID'] if not pd.isna(row['UniqueID']) else 'none',
+            'type': kind,
+            'plant_type': plant_type,
+            'fuel': FUELS[row['FuelType']],
+            'region': region,
+            'jurisdiction': STATE_CODES[row['StateName']],
             'nerc': row['NERC'],
             'utility': row['UTLSRVNM'],
             'x': row['LON'],
             'y': row['LAT'],
-            'installed_capacity': row['Capacity'] * 1e6, # [W]
-            'capacity_factor': capacity_factor,
-            'dispatchable': dispatchable,
+            'installed_capacity': float(row['Capacity']),
             'combinable': True,
-            'renewable': renewable,
-            'extensible': False,
-            'capex_capacity': 0,
-            'capex_cost': 0,
-            'operating_cost': np.nan_to_num(row['Fuel_VOM_Cost']) / 3.6e9,
-            'heat_rate': np.nan_to_num(row['HeatRate']) / 3412,
-            'nox': np.nan_to_num(row['PLNOXRTA']) * 0.453592 / 3.6e9,
-            'so2': np.nan_to_num(row['PLSO2RTA']) * 0.453592 / 3.6e9,
-            'co2': np.nan_to_num(row['PLCO2RTA']) * 0.453592 / 3.6e9,
-            'ch4': np.nan_to_num(row['PLCH4RTA']) * 0.453592 / 3.6e9,
-            'n2o': np.nan_to_num(row['PLN2ORTA']) * 0.453592 / 3.6e9,
-            'pm': np.nan_to_num(row['PLPMTRO']) * 0.453592 / 3.6e9,
+            'renewable': plant_type in RENEWABLE_PLANT_TYPES,
+            'operating_cost': float(np.nan_to_num(row['Fuel_VOM_Cost'])),
+            'heat_rate': float(np.nan_to_num(row['HeatRate'])),
+            **_emissions(row),
         }
 
-    regions, indices = np.unique(assets['RegionName'], return_index = True)
-    jurisdictions = assets['StateName'].to_numpy()[indices]
+        if kind == 'storage':
 
-    for idx, region in enumerate(regions):
+            asset.update(_class='Store', **_storage_fields(row, durations))
 
-        profile = f"{region}:load"
-        capacity = scale.get(profile, None)
+        elif kind in ('wind', 'solar'):
 
-        if capacity is None:
+            asset.update(_class='Producer', profile=profile_key(region, kind, 'mean'),
+                         capacity_credit=credit[kind])
+
+        elif kind == 'hydro':
+
+            key = profile_key(region, 'hydro')
+
+            if key in profiles:
+
+                asset.update(_class='Producer', profile=key, capacity_factor=1.0,
+                             energy_budget_window=hydro['energy_budget_window'])
+
+            else:
+
+                asset.update(_class='Producer', profile=None, capacity_factor=hydro['capacity_factor_without_profile'])
+
+        else:
+
+            asset.update(_class='Producer', profile=None, dispatchable=plant_type not in MUST_RUN_PLANT_TYPES)
+
+        data[f'installed_{idx}'] = asset
+
+    for region in sorted(set(assets['RegionName'])):
+
+        if region not in peak:
 
             continue
 
         data[f'base_load_{region}'] = {
-            'oris_code': 'none',
-            'egrid_id': 'none',
-            'type': 'load',
             '_class': 'Load',
-            'profile': profile,
+            'type': 'load',
+            'profile': profile_key(region, 'load'),
             'region': region,
             'jurisdiction': None,
-            'installed_capacity': capacity,
-            'capacity_factor': 1,
-            'dispatchable': False,
+            'installed_capacity': peak[region],  # MW; the profile peaks at 1.0
             'combinable': False,
-            'renewable': False,
-            'extensible': False,
-            'capex_capacity': 0,
-            'capex_cost': 0,
-            'operating_cost': 0,
-            'heat_rate': 0,
-            'nox': 0,
-            'so2': 0,
-            'co2': 0,
-            'ch4': 0,
-            'n2o': 0,
-            'pm': 0,
         }
 
-    _print(f'Installed assets formatted: {time.time() - t0:.4} seconds', disp = verbose)
+    _print(f'Installed assets formatted: {time.time() - t0:.1f} s', disp=verbose)
 
     return data
 
-def format_optional_assets(capex, verbose = False):
+
+def format_optional_assets(capex, profiles, regions, verbose=False):
+    '''Candidate wind and solar sites and one battery option per region.'''
 
     t0 = time.time()
 
-    classes = {
-        'generator': 'Producer',
-        'hydro': 'Producer',
-        'geothermal': 'Producer',
-        'solar': 'Load',
-        'wind': 'Load',
-        'storage': 'Store',
-    }
+    credit = parameter('capacity_credit')
+    charge_rate = parameter('renewable_capital_charge_rate')
 
     data = {}
-
+    skipped = 0
     k = -1
 
-    for plant_type in ['wind', 'solar']:
+    for kind in ('wind', 'solar'):
 
-        capacity = capex['capacity'][plant_type].copy()
-        cost = capex['cost'][plant_type].copy()
+        capacity = capex['capacity'][kind]
+        cost = capex['cost'][kind]
+        classes = _cost_class_columns(capacity)
 
-        for idx in range(1, 7):
+        cost_by_key = {
+            (r['IPM Region'], r['State'], int(r['Resource Class'])): r for _, r in cost.iterrows()
+        }
 
-            capacity[str(idx)] = capacity[str(idx)].astype(str)
-            cost[str(idx)] = cost[str(idx)].astype(str)
+        for _, row in capacity.iterrows():
 
-            capacity[idx] = capacity[str(idx)].str.replace(',', '').astype(float)
-            cost[idx] = cost[str(idx)].str.replace(',', '').astype(float)
+            key = (row['IPM Region'], row['State'], int(row['Resource Class']))
 
-        capacity.index = capacity.apply(
-            lambda r: f"{r['IPM Region']}:{r['State']}:{r['Resource Class']}", axis = 1,
-            ).to_list()
-
-        capacity = capacity.to_dict(orient = 'index')
-
-        cost.index = cost.apply(
-            lambda r: f"{r['IPM Region']}:{r['State']}:{r['Resource Class']}", axis = 1,
-            ).to_list()
-
-        cost = cost.to_dict(orient = 'index')
-
-        for key in capacity.keys():
-
-            # print(capacity[key])
-
-            if key not in cost:
+            if key not in cost_by_key:
 
                 continue
 
-            capex_capacity = [
-                capacity[key][idx] * 1e6 for idx in range(1, 7) \
-                if not np.isnan(capacity[key][idx])
-                ]
+            profile = profile_key(key[0], kind, key[2])
 
-            capex_cost = [
-                cost[key][idx] / 1e6 for idx in range(1, 7) if not np.isnan(cost[key][idx])
-                ]
+            if profile not in profiles:
 
-            if (not capex_capacity) or (not capex_cost):
+                skipped += 1
 
                 continue
 
             k += 1
 
-            profile = (
-                f"{capacity[key]['IPM Region']}:{plant_type}:{capacity[key]['Resource Class']}"
-                )
+            for cost_class in classes:
 
-            for idx in range(len(capex_capacity)):
+                mw = _numeric(pd.Series([row[cost_class]])).iloc[0]
+                per_kw = cost_by_key[key][cost_class]
 
-                data[f'optional_{k}_{idx}'] = {
-                    'oris_code': 'none',
-                    'egrid_id': 'none',
-                    'type': f'{plant_type}',
-                    'fuel': plant_type,
-                    '_class': classes[plant_type],
+                if pd.isna(mw) or pd.isna(per_kw) or mw <= 0:
+
+                    continue
+
+                data[f'optional_{k}_{cost_class}'] = {
+                    '_class': 'Producer',
+                    'type': kind,
+                    'fuel': kind,
                     'profile': profile,
-                    'region': capacity[key]['IPM Region'],
-                    'jurisdiction': capacity[key]['State'],
-                    'installed_capacity': 0,
-                    'capacity_factor': 1,
-                    'dispatchable': False,
+                    'region': key[0],
+                    'jurisdiction': key[1],
+                    'resource_class': key[2],
+                    'cost_class': int(cost_class),
+                    'installed_capacity': 0.0,
                     'combinable': False,
                     'renewable': True,
-                    'extensible': True,
-                    'capex_capacity': capex_capacity[idx],
-                    'capex_cost': capex_cost[idx],
-                    'operating_cost': 0,
-                    'heat_rate': 0,
-                    'nox': 0,
-                    'so2': 0,
-                    'co2': 0,
-                    'ch4': 0,
-                    'n2o': 0,
-                    'pm': 0,
+                    'capex_capacity': float(mw),
+                    'capex_cost': float(per_kw) * 1e3,  # $/kW -> $/MW
+                    'fom_cost': capex['fom'][kind] * 1e3,  # $/kW-yr -> $/MW-yr
+                    'capital_charge_rate': charge_rate,
+                    'capacity_credit': credit[kind],
+                    'operating_cost': 0.0,
                 }
-    
-    regions = np.unique([p['region'] for p in data.values()])
 
-    for idx, region in enumerate(regions):
+    battery = parameter('new_battery')
+    one_way = float(np.sqrt(battery['round_trip_efficiency']))
 
-        # profile = f"{region}:hydro"
-
-        if capacity is None:
-
-            continue
+    for idx, region in enumerate(sorted(regions)):
 
         data[f'optional_storage_{idx}'] = {
-            'oris_code': 'none',
-            'egrid_id': 'none',
-            'type': 'battery',
             '_class': 'Store',
-            # 'profile': profile,
+            'type': 'battery',
+            'fuel': 'battery',
             'region': region,
             'jurisdiction': None,
-            'installed_capacity': 0,
-            'capacity_factor': 1,
-            'dispatchable': True,
+            'installed_capacity': 0.0,
             'combinable': False,
             'renewable': False,
-            'extensible': True,
-            'capex_capacity': np.inf,
-            'capex_cost': 1200 / (4 * 3.6e6),
-            'operating_cost': 0,
-            'heat_rate': 0,
-            'nox': 0,
-            'so2': 0,
-            'co2': 0,
-            'ch4': 0,
-            'n2o': 0,
-            'pm': 0,
+            'duration': battery['duration'],
+            'charge_efficiency': one_way,
+            'discharge_efficiency': one_way,
+            'capex_capacity': float('inf'),
+            'capex_cost': battery['capex_cost'],
+            'fom_cost': battery['fom_cost'],
+            'operating_cost': battery['operating_cost'],
+            'lifetime': battery['lifetime'],
+            'discount_rate': parameter('real_discount_rate'),
+            'capacity_credit': credit['battery'],
         }
 
-    _print(f'Optional assets formatted: {time.time() - t0:.4} seconds', disp = verbose)
+    _print(f'Optional assets formatted: {time.time() - t0:.1f} s ({skipped} site groups without a profile skipped)',
+           disp=verbose)
 
     return data
 
-def format_lines(transmission, verbose = False):
+
+def format_lines(transmission, verbose=False):
+    '''Directed lines (MW, $/MWh) with EPA losses; the two directions of a path share a corridor.'''
 
     t0 = time.time()
 
+    loss = parameter('transmission_loss')
+    capacity, cost = transmission['capacity'], transmission['cost']
+
+    pairs = []
+
+    for source, row in capacity.iterrows():
+
+        for target, mw in row.items():
+
+            if source not in cost.index or target not in cost.columns:
+
+                continue
+
+            if 'CN_' in source or 'CN_' in target or mw == 0:
+
+                continue
+
+            pairs.append((source, target, float(mw), float(cost.loc[source, target])))
+
+    present = {(s, t) for s, t, _, _ in pairs}
     links = {}
 
-    k = -1
+    for k, (source, target, mw, tariff) in enumerate(pairs):
 
-    # Iterate through each row and column to extract data
-    for source, row in transmission['capacity'].iterrows():
-        if source in transmission['cost'].index:
-            for target, capacity in row.items():
-                if target in transmission['cost'].columns:
+        interconnect = 'WECC' if source.startswith('WEC') else 'other'
 
-                    if ('CN_' in source) or ('CN_' in target):
+        line = {
+            'source': source,
+            'target': target,
+            'type': 'line',
+            '_class': 'Transmission',
+            'installed_capacity': mw,
+            'operating_cost': tariff,  # 2016 mills/kWh = $/MWh
+            'efficiency': 1.0 - loss[interconnect],
+        }
 
-                        continue
+        if (target, source) in present:
 
-                    k += 1
+            line['corridor'] = '|'.join(sorted((source, target)))
 
-                    cost = transmission['cost'].loc[source, target]
+        links[f'line_{k}'] = line
 
-                    if capacity == 0:
-
-                        continue
-
-                    # Append data to link_example list
-                    links[f'line_{k}'] = {
-                        'source': source,
-                        'target': target,
-                        'type': 'line',
-                        '_class': 'Transmission',
-                        'installed_capacity': capacity * 1e6,
-                        'operating_cost': cost / 3.6e9,
-                        'dispatchable': True,
-                        'extensible': False,
-                        'capex_capacity': 0,
-                        'capex_cost': 0,
-                        }
-
-    _print(f'Lines formatted: {time.time() - t0:.4} seconds', disp = verbose)
+    _print(f'Lines formatted: {time.time() - t0:.1f} s', disp=verbose)
 
     return links
 
-def format_profiles(profiles, verbose = False):
+
+def format_policies(policies, jurisdictions, verbose=False):
+    '''State renewable portfolio standards as GOOD 2.x attribute filters.'''
 
     t0 = time.time()
 
     data = {}
-    scale = {}
+    dropped = []
 
-    region = ''
+    for state, ratio in policies['rps'].items():
 
-    for idx, row in profiles['solar'].iterrows():
+        if state not in jurisdictions:
 
-        row_region = row['Region Name']
+            dropped.append(state)
 
-        data = nested_add(
-            data, row['Profile'], f"{row_region}:solar:{row['Resource Class']}"
-            )
+            continue
 
-        if row_region != region:
-
-            region = row_region
-
-            data = nested_add(
-                data, row['Profile'], f"{row_region}:solar:"
-                )
-
-    region = ''
-
-    for idx, row in profiles['wind'].iterrows():
-
-        row_region = row['Region Name']
-
-        data = nested_add(
-            data, row['Profile'], f"{row_region}:wind:{row['Resource Class']}"
-            )
-
-        if row_region != region:
-
-            region = row_region
-
-            data = nested_add(
-                data, row['Profile'], f"{row_region}:wind:"
-                )
-
-    for idx, row in profiles['load'].iterrows():
-
-        profile = row['Profile']
-        capacity = min(row['Profile'])
-
-        data = nested_add(
-            data, row['Profile'] / capacity, f"{row['Region']}:load"
-            )
-
-        scale = nested_add(
-            scale, capacity, f"{row['Region']}:load"
-            )
-
-    for idx, row in profiles['hydro'].iterrows():
-
-        profile = row['Profile']
-        capacity = max(row['Profile'])
-
-        data = nested_add(
-            data, row['Profile'] / capacity, f"{row['Region']}:hydro"
-            )
-
-        scale = nested_add(
-            scale, capacity, f"{row['Region']}:hydro"
-            )
-
-    _print(f'Profiles formatted: {time.time() - t0:.4} seconds', disp = verbose)
-
-    return data, scale
-
-def format_policies(policies, verbose = False):
-
-    t0 = time.time()
-
-    data = {}
-
-    k = -1
-
-    for jurisdiction, ratio in policies['rps'].items():
-
-        k += 1
-
-        data[f'rps_{jurisdiction}'] = {
-            'type': f'rps',
+        data[f'rps_{state}'] = {
+            'type': 'rps',
             '_class': 'Portfolio_Standard',
-            'ratio': ratio,
-            'inclusion_criteria': {
-                "renewable": "lambda a: a.get('renewable', False)",
-                "not_battery": "lambda a: a.get('_class', '') != 'Store'",
-                "not_load": "lambda a: a.get('type', '') != 'load'",
-                "jurisdiction": f"lambda a: a.get('jurisdiction', '') == '{jurisdiction}'",
-            },
-            'exclusion_criteria': {
-                "renewable": "lambda a: not a.get('renewable', False)",
-                "not_battery": "lambda a: a.get('_class', '') != 'Store'",
-                "not_load": "lambda a: a.get('type', '') != 'load'",
-                "jurisdiction": f"lambda a: a.get('jurisdiction', '') == '{jurisdiction}'",
-            },
+            'ratio': float(ratio),
+            'include': {'renewable': True, '_class': 'Producer', 'jurisdiction': state},
+            'exclude': {'renewable': {'not': True}, '_class': 'Producer', 'jurisdiction': state},
         }
 
-    _print(f'Policies formatted: {time.time() - t0:.4} seconds', disp = verbose)
+    _print(f'Policies formatted: {time.time() - t0:.1f} s (no assets for: {", ".join(dropped) or "none"})',
+           disp=verbose)
 
     return data
 
-# Write
 
-def write_assets(data, output_path = '', filename = 'assets.json', verbose = False):
+# ============================================================================ write
 
-    t0 = time.time()
+def _rounded(value, digits):
 
-    with open(output_path + filename, 'w') as file:
+    if isinstance(value, dict):
 
-        json.dump(data, file, indent = 4, cls = NpEncoder)
+        return {k: _rounded(v, digits) for k, v in value.items()}
 
-    _print(f'Assets written: {time.time() - t0:.4} seconds', disp = verbose)
+    if isinstance(value, (list, tuple, np.ndarray)):
 
-def write_lines(data, output_path = '', filename = 'lines.json', verbose = False):
+        return [_rounded(v, digits) for v in value]
 
-    t0 = time.time()
+    if isinstance(value, (float, np.floating)):
 
-    with open(output_path + filename, 'w') as file:
+        value = float(value)
 
-        json.dump(data, file, indent = 4, cls = NpEncoder)
+        return value if not np.isfinite(value) else float(f'{value:.{digits}g}')
 
-    _print(f'Lines written: {time.time() - t0:.4} seconds', disp = verbose)
+    if isinstance(value, np.integer):
 
-def write_profiles(data, output_path = '', foldername = 'profiles/', verbose = False):
+        return int(value)
 
-    t0 = time.time()
+    if isinstance(value, np.bool_):
 
-    directory = output_path + foldername
+        return bool(value)
 
-    if not os.path.exists(directory):
+    return value
 
-        os.makedirs(directory)
 
-    for key, val in data.items():
+def _write(data, path):
 
-        filename = directory + key + '.json'
+    with open(path, 'w') as file:
 
-        with open(filename, 'w') as file:
+        json.dump(data, file, indent=1, sort_keys=True)
+        file.write('\n')
 
-            json.dump(val, file, indent = 4, cls = NpEncoder)
 
-    _print(f'Profles written: {time.time() - t0:.4} seconds', disp = verbose)
+def write_assets(data, output_path='', filename='assets.json', verbose=False):
 
-def write_policies(data, output_path = '', filename = 'policies.json', verbose = False):
+    _write(_rounded(data, 10), os.path.join(output_path, filename))
+    _print(f'Assets written: {len(data)}', disp=verbose)
 
-    t0 = time.time()
 
-    with open(output_path + filename, 'w') as file:
+def write_lines(data, output_path='', filename='lines.json', verbose=False):
 
-        json.dump(data, file, indent = 4, cls = NpEncoder)
+    _write(_rounded(data, 10), os.path.join(output_path, filename))
+    _print(f'Lines written: {len(data)}', disp=verbose)
 
-    _print(f'Policies written: {time.time() - t0:.4} seconds', disp = verbose)
 
-# Processing functions
+def write_profiles(data, output_path='', foldername='profiles', verbose=False):
+    '''One file per profile; values rounded to 1e-5 per-unit.'''
 
-class NpEncoder(json.JSONEncoder):
+    directory = os.path.join(output_path, foldername)
+    os.makedirs(directory, exist_ok=True)
+
+    for name in os.listdir(directory):
+
+        if name.endswith('.json'):
+
+            os.remove(os.path.join(directory, name))
+
+    for key, values in data.items():
+
+        with open(os.path.join(directory, f'{key}.json'), 'w') as file:
+
+            json.dump([round(float(v), 5) + 0.0 for v in values], file)
+            file.write('\n')
+
+    _print(f'Profiles written: {len(data)}', disp=verbose)
+
+
+def write_policies(data, output_path='', filename='policies.json', verbose=False):
+
+    _write(_rounded(data, 10), os.path.join(output_path, filename))
+    _print(f'Policies written: {len(data)}', disp=verbose)
+
+
+def write_metadata(output_path='', filename='metadata.json', **extra):
+
+    metadata = {
+        'good_format': FORMAT_VERSION,
+        'units': {
+            'installed_capacity': 'MW', 'capex_capacity': 'MW', 'duration': 'h',
+            'operating_cost': '$/MWh', 'capex_cost': '$/MW', 'fom_cost': '$/MW-yr',
+            'heat_rate': 'Btu/kWh', 'emissions (nox, so2, co2, ch4, n2o, pm)': 'kg/MWh',
+            'profiles': 'per-unit, 8760 hourly values', 'dollar_year': 2016,
+        },
+        'parameters': {k: {'value': v['value'], 'source': v['source']} for k, v in PARAMETERS.items()},
+        **extra,
+    }
+
+    _write(_rounded(metadata, 10), os.path.join(output_path, filename))
+
+
+# ============================================================================ processing
+
+def build_rps(df, states=None, year=2025):
+    '''RPS share by state in ``year``, interpolated between the table's years.'''
+
+    states = df['st'].unique() if states is None else states
+
+    return {state: float(np.interp(year, df.loc[df['st'] == state, 't'], df.loc[df['st'] == state, 'rps_all']))
+            for state in states}
+
+
+def _fill_region_state(table):
+    '''Region and state are given only on the first row of each block; fill them down.'''
+
+    table = table.copy()
+    table['IPM Region'] = table['IPM Region'].ffill()
+    table['State'] = table['State'].ffill()
+
+    return table
+
+
+def _cost_class_columns(table):
+
+    return [c for c in table.columns if str(c).strip().isdigit()]
+
+
+def base_capital_costs(unit_cost, regional_cost, vintage=None):
     '''
-    Encoder to allow for numpy types to be converted to default types for
-    JSON serialization. For use with json.dump(s)/load(s).
-    '''
-    def default(self, obj):
+    Regional base capital cost ($/kW) and fixed O&M ($/kW-yr) for new wind and solar.
 
-        if isinstance(obj, np.integer):
-
-            return int(obj)
-
-        if isinstance(obj, np.floating):
-
-            return float(obj)
-
-        if isinstance(obj, np.ndarray):
-
-            return obj.tolist()
-
-        return super(NpEncoder, self).default(obj)
-
-def _print(string, disp = True):
-
-    if disp:
-
-        print(string)
-
-def nested_add(dictionary, value, *keys):
-    '''
-    Add entry to dictionary and create required nesting
+    Base cost is EPA Table 4-16 for the chosen vintage times the Table 4-15 regional factor.
     '''
 
-    level = dictionary
+    vintage = vintage or parameter('cost_vintage')
+    rows = unit_cost[unit_cost['year'].astype(str).str.contains(vintage)]
 
-    for key in keys[:-1]:
+    capital = rows[rows['cost'].str.startswith('Capital')].iloc[0]
+    fom = rows[rows['cost'].str.startswith('FixedO&M')].iloc[0]
 
-        if key not in level:
+    factors = regional_cost.set_index('ModelRegion')
 
-            level[key] = {}
+    base = {
+        'wind': (factors['OnshoreWind'] * float(capital['OnshoreWind'])).to_dict(),
+        'solar': (factors['SolarPV'] * float(capital['SolarPhotovoltaic'])).to_dict(),
+    }
 
-        level = level[key]
-
-    level[keys[-1]] = value
-        
-    return dictionary
-
-def build_rps(df, states = None, year = 2025):
-
-    if states == None:
-
-        states = df['st'].unique()
-
-    data = {}
-
-    for state in states:
-
-        df_s = df[df['st'] == state]
-
-        data[state] = np.interp(year, df_s['t'], df_s['rps_all'])
-
-    return data
-
-def renewable_transmission_cost(unit_cost, region_cost, capital_cost, year = '2023'):
-
-    unit_capital_cost = unit_cost[unit_cost["cost"] == 'Capital(2016$/kW)']
-    # unit_capital_cost['year'] = unit_capital_cost.apply()
-
-    # Selecting relevant rows based on user input
-    selected_rows = unit_cost[unit_cost['year'].str.contains(year)]
-    selected_rows = selected_rows[selected_rows["cost"] == 'Capital(2016$/kW)']
-    selected_rows = selected_rows[["SolarPhotovoltaic", "OnshoreWind"]]
+    return base, {'wind': float(fom['OnshoreWind']), 'solar': float(fom['SolarPhotovoltaic'])}
 
 
-    # Creating a new DataFrame for regional costs
-    regional_cost_selected = (
-        region_cost[['ModelRegion', 'OnshoreWind', 'SolarPV']].copy()
-        )
-    regional_cost_selected['OnshoreWind'] = (
-        regional_cost_selected['OnshoreWind'] * selected_rows['OnshoreWind'].iloc[0]
-        )
-    regional_cost_selected['SolarPV'] = (
-        regional_cost_selected['SolarPV'] * selected_rows['SolarPhotovoltaic'].iloc[0]
-        )
-    regional_cost_selected = (
-        regional_cost_selected.rename(columns={"ModelRegion": "IPM Region"})
-        )
+def add_base_cost(adders, base):
+    '''Full capital cost ($/kW): the regional base cost plus each cost class's adder.'''
 
-    # Merging regional cost information with wind and solar capital cost DataFrames
-    capital_cost['wind'] = pd.merge(
-        capital_cost['wind'],
-        regional_cost_selected[["IPM Region", "OnshoreWind"]],
-        how="left",
-        on="IPM Region",
-        )
+    table = adders.copy()
 
-    capital_cost['solar'] = pd.merge(
-        capital_cost['solar'],
-        regional_cost_selected[["IPM Region", "SolarPV"]],
-        how="left",
-        on="IPM Region",
-        )
+    for column in _cost_class_columns(table):
 
-    # Summing values and removing redundant columns for wind and solar capital costs
-    capital_cost['wind'].iloc[:, 3:9] = (
-        capital_cost['wind'].iloc[:, 3:9].add(capital_cost['wind'].iloc[:, -1], axis=0)
-        )
+        table[column] = _numeric(table[column]) + table['IPM Region'].map(base)
 
-    capital_cost['solar'].iloc[:, 3:9] = (
-        capital_cost['solar'].iloc[:, 3:9].add(
-            capital_cost['solar'].iloc[:, -1], axis=0
-            )
-        )
+    return table
 
-    capital_cost['wind'] = capital_cost['wind'].iloc[:, :-1]
-    capital_cost['solar'] = capital_cost['solar'].iloc[:, :-1]
-
-    return capital_cost
-
-def ffill_ren_cap(Wind_onshore_capacity_df, Solar_regional_capacity_df):
-    Wind_onshore_capacity_df['IPM Region'].ffill(inplace=True)
-    Wind_onshore_capacity_df['State'].ffill(inplace=True)
-    Solar_regional_capacity_df['IPM Region'].ffill(inplace=True)
-    Solar_regional_capacity_df['State'].ffill(inplace=True)
-    return Wind_onshore_capacity_df, Solar_regional_capacity_df
-
-def ffill_ren_cost(Wind_onshore_cost_df, Solar_regional_cost_df):
-    Wind_onshore_cost_df['IPM Region'].ffill(inplace=True)
-    Wind_onshore_cost_df['State'].ffill(inplace=True)
-    Solar_regional_cost_df['IPM Region'].ffill(inplace=True)
-    Solar_regional_cost_df['State'].ffill(inplace=True)
-
-    return Wind_onshore_cost_df, Solar_regional_cost_df
-
-def long_wide_load(df):
-
-    for key in df.keys():
-
-        if 'Hour' in key:
-
-            df[key] = df[key].astype(str).str.replace(',', '').astype(float) * -1e6
-
-    # Define the columns to keep (first four columns)
-    columns_to_keep = ['Region']
-
-    # Group by the first four columns and concatenate columns 6 to 26
-    result_df = df.groupby(columns_to_keep).apply(
-        lambda x: x.iloc[:, 3:].values.flatten()
-        ).reset_index()
-
-    result_df = result_df.rename(columns={result_df.columns[1]: "Profile"})
-
-    # Convert the Profile column to a list of lists
-    result_df['Profile'] = result_df['Profile'].tolist()
-
-    return result_df
-
-def long_wide_hydro(df):
-
-    df = df[df['PlantType'] == 'Hydro']
-
-    # Define the columns to keep (first four columns)
-    columns_to_keep = ['Region']
-
-    # Group by the first four columns and concatenate columns 6 to 26
-    result_df = df.groupby(columns_to_keep).apply(
-        lambda x: x.iloc[:, 3:].values.flatten()
-        ).reset_index()
-
-    result_df = result_df.rename(columns={result_df.columns[1]: "Profile"})
-
-    # Convert the Profile column to a list of lists
-    result_df['Profile'] = result_df['Profile'].tolist()
-
-    return result_df
-
-def long_wide(df):
-
-    # Define the columns to keep (first four columns)
-    columns_to_keep = ['Region Name', 'State Name', 'Resource Class']
-
-    # Group by the first four columns and concatenate columns 6 to 26,
-    # and convert the kwh/MW to MWh/MW
-    result_df = df.groupby(columns_to_keep).apply(
-        lambda x: (x.iloc[:, 6:] / 1000).values.flatten()
-        ).reset_index()
-
-    result_df = result_df.rename(columns={result_df.columns[3]: "Profile"})
-
-    # Convert the Profile column to a list of lists
-    result_df['Profile'] = result_df['Profile'].tolist()
-
-
-    return result_df
 
 def assign_em_rates(input_df, input_df_old):
+    '''Fill missing emission rates from similar plants and add PM rates (lb/MWh).'''
 
-    input_df.loc[input_df["FuelType"].isin(["Pumps", "Hydro", "Geothermal", "Non-Fossil", "EnerStor", "Nuclear", "Solar", "Wind"]), ["PLCO2RTA", "PLSO2RTA", "PLCH4RTA", "PLN2ORTA", "PLNOXRTA"]] = 0
+    input_df = input_df.copy()
+    rates = ['PLCO2RTA', 'PLNOXRTA', 'PLCH4RTA', 'PLN2ORTA', 'PLSO2RTA']
+
+    input_df.loc[
+        input_df['FuelType'].isin(['Pumps', 'Hydro', 'Geothermal', 'Non-Fossil', 'EnerStor', 'Nuclear', 'Solar', 'Wind']),
+        rates,
+    ] = 0
+
     for r in range(input_df.shape[0]):
-        if np.isnan(input_df.at[r, 'PLCO2RTA']):
-            # Expand search to the same state if no similar plants found in the same state
-            similar_rows = input_df[(input_df['FuelType'] == input_df.at[r, 'FuelType']) &
-                                    (input_df['StateName'] == input_df.at[r, 'StateName']) &
-                                    (input_df['PlantType'] == input_df.at[r, 'PlantType']) &
-                                    (input_df['Capacity'] > input_df.at[r, 'Capacity'] * 0.85) &
-                                    (input_df['Capacity'] < input_df.at[r, 'Capacity'] * 1.15) &
-                                    (input_df['HeatRate'] > input_df.at[r, 'HeatRate'] * 0.85) &
-                                    (input_df['HeatRate'] < input_df.at[r, 'HeatRate'] * 1.15)]
 
-            input_df.loc[r, ['PLCO2RTA', 'PLNOXRTA', 'PLCH4RTA', 'PLN2ORTA', 'PLSO2RTA']] = similar_rows[['PLCO2RTA', 'PLNOXRTA', 'PLCH4RTA', 'PLN2ORTA', 'PLSO2RTA']].mean()
+        if not np.isnan(input_df.at[r, 'PLCO2RTA']):
 
-        if np.isnan(input_df.at[r, 'PLCO2RTA']):
-            # Expand search to the same NERC region if no similar plants found in the same NERC region
-            similar_rows = input_df[(input_df['FuelType'] == input_df.at[r, 'FuelType']) &
-                                    (input_df['NERC'] == input_df.at[r, 'NERC']) &
-                                    (input_df['PlantType'] == input_df.at[r, 'PlantType']) &
-                                    (input_df['Capacity'] > input_df.at[r, 'Capacity'] * 0.85) &
-                                    (input_df['Capacity'] < input_df.at[r, 'Capacity'] * 1.15) &
-                                    (input_df['HeatRate'] > input_df.at[r, 'HeatRate'] * 0.85) &
-                                    (input_df['HeatRate'] < input_df.at[r, 'HeatRate'] * 1.15)]
+            continue
 
-            input_df.loc[r, ['PLCO2RTA', 'PLNOXRTA', 'PLCH4RTA', 'PLN2ORTA', 'PLSO2RTA']] = similar_rows[['PLCO2RTA', 'PLNOXRTA', 'PLCH4RTA', 'PLN2ORTA', 'PLSO2RTA']].mean()
+        same = (input_df['FuelType'] == input_df.at[r, 'FuelType']) & (input_df['PlantType'] == input_df.at[r, 'PlantType'])
+        size = (input_df['Capacity'] > input_df.at[r, 'Capacity'] * 0.85) & (input_df['Capacity'] < input_df.at[r, 'Capacity'] * 1.15)
+        heat = (input_df['HeatRate'] > input_df.at[r, 'HeatRate'] * 0.85) & (input_df['HeatRate'] < input_df.at[r, 'HeatRate'] * 1.15)
+        state = input_df['StateName'] == input_df.at[r, 'StateName']
+        nerc = input_df['NERC'] == input_df.at[r, 'NERC']
 
-        if np.isnan(input_df.at[r, 'PLCO2RTA']):
-            # Expand search to all similar plants if no similar plants found in entire state
-            similar_rows = input_df[(input_df['FuelType'] == input_df.at[r, 'FuelType']) &
-                                    (input_df['PlantType'] == input_df.at[r, 'PlantType']) &
-                                    (input_df['Capacity'] > input_df.at[r, 'Capacity'] * 0.85) &
-                                    (input_df['Capacity'] < input_df.at[r, 'Capacity'] * 1.15) &
-                                    (input_df['HeatRate'] > input_df.at[r, 'HeatRate'] * 0.85) &
-                                    (input_df['HeatRate'] < input_df.at[r, 'HeatRate'] * 1.15)]
+        # Widen the search until a match is found: similar size and heat rate in the
+        # state, NERC region or country, then any size in the state, NERC region or country.
+        for mask in (same & state & size & heat, same & nerc & size & heat, same & size & heat,
+                     same & state, same & nerc, same):
 
-            input_df.loc[r, ['PLCO2RTA', 'PLNOXRTA', 'PLCH4RTA', 'PLN2ORTA', 'PLSO2RTA']] = similar_rows[['PLCO2RTA', 'PLNOXRTA', 'PLCH4RTA', 'PLN2ORTA', 'PLSO2RTA']].mean()
+            input_df.loc[r, rates] = input_df.loc[mask, rates].mean()
 
+            if not np.isnan(input_df.at[r, 'PLCO2RTA']):
 
-        if np.isnan(input_df.at[r, 'PLCO2RTA']):
-            # Expand search to the same state if no similar plants found in the same state
-            similar_rows = input_df[(input_df['FuelType'] == input_df.at[r, 'FuelType']) &
-                                    (input_df['StateName'] == input_df.at[r, 'StateName']) &
-                                    (input_df['PlantType'] == input_df.at[r, 'PlantType'])]
+                break
 
-            input_df.loc[r, ['PLCO2RTA', 'PLNOXRTA', 'PLCH4RTA', 'PLN2ORTA', 'PLSO2RTA']] = similar_rows[['PLCO2RTA', 'PLNOXRTA', 'PLCH4RTA', 'PLN2ORTA', 'PLSO2RTA']].mean()
+        if np.isnan(input_df.at[r, 'PLCO2RTA']) and input_df.at[r, 'Capacity'] < 50:
 
-        if np.isnan(input_df.at[r, 'PLCO2RTA']):
-            # Expand search to the same NERC region if no similar plants found in the same NERC region
-            similar_rows = input_df[(input_df['FuelType'] == input_df.at[r, 'FuelType']) &
-                                    (input_df['NERC'] == input_df.at[r, 'NERC']) &
-                                    (input_df['PlantType'] == input_df.at[r, 'PlantType'])]
+            input_df.loc[r, rates] = 0
 
-            input_df.loc[r, ['PLCO2RTA', 'PLNOXRTA', 'PLCH4RTA', 'PLN2ORTA', 'PLSO2RTA']] = similar_rows[['PLCO2RTA', 'PLNOXRTA', 'PLCH4RTA', 'PLN2ORTA', 'PLSO2RTA']].mean()
-
-        if np.isnan(input_df.at[r, 'PLCO2RTA']):
-            # Expand search to all similar plants if no similar plants found in entire state
-            similar_rows = input_df[(input_df['FuelType'] == input_df.at[r, 'FuelType']) &
-                                    (input_df['PlantType'] == input_df.at[r, 'PlantType'])]
-
-            input_df.loc[r, ['PLCO2RTA', 'PLNOXRTA', 'PLCH4RTA', 'PLN2ORTA', 'PLSO2RTA']] = similar_rows[['PLCO2RTA', 'PLNOXRTA', 'PLCH4RTA', 'PLN2ORTA', 'PLSO2RTA']].mean()
-
-        if pd.isna(input_df.at[r, 'PLCO2RTA']) and input_df.at[r, 'Capacity'] < 50:
-            input_df.at[r, 'PLCO2RTA'] = 0
-            input_df.at[r, 'PLNOXRTA'] = 0
-            input_df.at[r, 'PLCH4RTA'] = 0
-            input_df.at[r, 'PLN2ORTA'] = 0
-            input_df.at[r, 'PLSO2RTA'] = 0
-    # PM emissions
+    # PM emissions (AP-42 chapter 1 factors, lb/MMBtu, times heat rate)
     input_df['PLPMTRO'] = np.select(
         [(input_df['FuelType'] == 'Coal') & (input_df['PLPRMFL'] == 'RC'),
          (input_df['FuelType'] == 'Coal') & (input_df['PLPRMFL'] != 'RC'),
@@ -943,265 +920,162 @@ def assign_em_rates(input_df, input_df_old):
 
     input_df['PLPMTRO'] = input_df['PLPMTRO'] * input_df['HeatRate'] / 1000
 
-    # Adjust emissions for outliers based on conditions
+    # Outliers: take eGRID 2020 values for large plants with implausible CO2 rates.
     for r in range(input_df.shape[0]):
 
         if input_df.at[r, 'FuelType'] != 'Oil' and input_df.at[r, 'PLCO2RTA'] > 5000:
+
             if input_df.at[r, 'PLNGENAN'] > 1000:
-                orispl = input_df.at[r, 'ORISPL']
-                old_values = input_df_old[(input_df_old['ORISPL'] == orispl)]
-                if not old_values.empty:
-                    input_df.loc[r, ['PLCO2RTA', 'PLSO2RTA', 'PLCH4RTA', 'PLN2ORTA', 'PLNOXRTA']] = old_values[
-                        ['PLCO2RTA', 'PLSO2RTA', 'PLCH4RTA', 'PLN2ORTA', 'PLNOXRTA']].values[0]
+
+                old = input_df_old[input_df_old['ORISPL'] == input_df.at[r, 'ORISPL']]
+
+                if not old.empty:
+
+                    input_df.loc[r, rates] = old[rates].values[0]
 
         if input_df.at[r, 'FuelType'] != 'Oil' and input_df.at[r, 'PLCO2RTA'] > 250000:
-            input_df.loc[r, ['PLCO2RTA', 'PLSO2RTA', 'PLCH4RTA', 'PLN2ORTA', 'PLNOXRTA']] = input_df.loc[r, ['PLCO2RTA', 'PLSO2RTA', 'PLCH4RTA', 'PLN2ORTA', 'PLNOXRTA']] / 1000
+
+            input_df.loc[r, rates] = input_df.loc[r, rates] / 1000
 
     return input_df
 
+
 def map_fuel_type(row_input):
-    plant_type = row_input["PlantType"]
-    egrid_primaryfuel = row_input["PLPRMFL"]  # Replace this with the actual egrid_primaryfuel column
+
+    plant_type = row_input['PlantType']
+    primary = row_input['PLPRMFL']
+
     if plant_type == 'Coal Steam':
         return 'Coal'
-    elif plant_type == 'Nuclear':
+    if plant_type == 'Nuclear':
         return 'Nuclear'
-    elif plant_type == 'O/G Steam':
+    if plant_type == 'O/G Steam':
         return 'Oil'
-    elif plant_type == 'Biomass':
+    if plant_type == 'Biomass':
         return 'Biomass'
-    elif plant_type == 'IMPORT':
+    if plant_type == 'IMPORT':
         return 'IMPORT'
-    elif plant_type == 'IGCC' or (plant_type == 'Combined Cycle' or egrid_primaryfuel == 'NaturalGas'):
+    if plant_type == 'IGCC' or plant_type == 'Combined Cycle' or primary == 'NaturalGas':
         return 'NaturalGas'
-    elif plant_type == 'Combined Cycle' and egrid_primaryfuel == 'NaturalGas':
-        return 'NaturalGas'
-    elif plant_type == 'Geothermal':
+    if plant_type == 'Geothermal':
         return 'Geothermal'
-    elif (plant_type == 'Combustion Turbine') and (egrid_primaryfuel == 'NG'):
+    if plant_type == 'Combustion Turbine' and primary == 'NG':
         return 'NaturalGas'
-    elif (plant_type == 'Combustion Turbine') and (egrid_primaryfuel == 'DFO'):
+    if plant_type == 'Combustion Turbine' and primary == 'DFO':
         return 'Oil'
-    elif (plant_type == 'Combustion Turbine') and (egrid_primaryfuel == 'WDS'):
+    if plant_type == 'Combustion Turbine' and primary == 'WDS':
         return 'Biomass'
-    else:
-        return row_input["FuelType"]
 
-def adjust_coal_generation_cost(df, target_mean = 23):
-    # Filter only the rows with FuelType 'Coal'
-    coal_data = df[df['FuelType'] == 'Coal'].copy()
-    
-    # Calculate the current mean
-    current_mean = coal_data['Fuel_VOM_Cost'].mean()
+    return row_input['FuelType']
 
-    # Adjust the costs to have the target mean
-    adjustment_factor = target_mean / current_mean
-    coal_data['adjusted_cost'] = coal_data['Fuel_VOM_Cost'] * adjustment_factor
 
-    # Replace the original Fuel_VOM_Cost with the adjusted values
-    df.loc[df['FuelType'] == 'Coal', 'Fuel_VOM_Cost'] = coal_data['adjusted_cost']
+def rescale_mean_cost(df, fuel, target_mean):
+    '''Scale one fuel's dispatch costs so their mean equals ``target_mean`` ($/MWh).'''
+
+    df = df.copy()
+    selected = df['FuelType'] == fuel
+    current = df.loc[selected, 'Fuel_VOM_Cost'].mean()
+
+    if selected.any() and current > 0:
+
+        df.loc[selected, 'Fuel_VOM_Cost'] = df.loc[selected, 'Fuel_VOM_Cost'] * target_mean / current
 
     return df
 
-def adjust_oil_generation_cost(df, target_mean = 32):
-    # Filter only the rows with FuelType 'Oil'
-    oil_data = df[df['FuelType'] == 'Oil'].copy()
 
-    # Calculate the current mean
-    current_mean = oil_data['Fuel_VOM_Cost'].mean()
+def _fill_low_costs(frame, column, threshold_width, rng):
+    '''
+    Replace implausibly low costs with a cost sampled from plants of the same
+    fuel, searching the region, then the state, NERC region and country.
+    '''
 
-    # Adjust the costs to have the target mean
-    adjustment_factor = target_mean / current_mean
-    oil_data['adjusted_cost'] = oil_data['Fuel_VOM_Cost'] * adjustment_factor
+    for idx, row in frame.iterrows():
 
-    # Replace the original Fuel_VOM_Cost with the adjusted values
-    df.loc[df['FuelType'] == 'Oil', 'Fuel_VOM_Cost'] = oil_data['adjusted_cost']
+        fuel_type = row['FuelType']
+        costs = frame.loc[(frame['FuelType'] == fuel_type) & (frame[column] > 1), column]
+        threshold = max(costs.mean() - threshold_width * costs.std(), 0)
 
-    return df
+        if not row[column] <= threshold:
 
-def adjust_nuclear_generation_cost(df, target_mean = 21.2):
-    # Filter only the rows with FuelType 'Nuclear'
-    nuclear_data = df[df['FuelType'] == 'Nuclear'].copy()
+            continue
 
-    # Calculate the current mean
-    current_mean = nuclear_data['Fuel_VOM_Cost'].mean()
+        same_fuel = frame['FuelType'] == fuel_type
 
-    # Adjust the costs to have the target mean
-    adjustment_factor = target_mean / current_mean
-    nuclear_data['adjusted_cost'] = nuclear_data['Fuel_VOM_Cost'] * adjustment_factor
+        for scope in ('RegionName', 'StateName', 'NERC', None):
 
-    # Replace the original Fuel_VOM_Cost with the adjusted values
-    df.loc[df['FuelType'] == 'Nuclear', 'Fuel_VOM_Cost'] = nuclear_data['adjusted_cost']
+            mask = same_fuel & (frame[column] > threshold)
 
-    return df
+            if scope is not None:
 
-def assign_fuel_costs(input_df):
+                mask &= frame[scope] == row[scope]
+
+            candidates = frame.loc[mask, column]
+
+            if not candidates.empty:
+
+                frame.at[idx, column] = rng.choice(candidates.to_numpy())
+
+            if frame.at[idx, column] > threshold:
+
+                break
+
+    return frame
+
+
+def assign_fuel_costs(input_df, rng):
+    '''
+    Dispatch cost ($/MWh) = fuel cost + variable O&M, from NEEDS totals.
+
+    Fixed O&M is no longer added to nuclear dispatch cost: a fixed cost does
+    not change with output, and including it raised nuclear's marginal cost
+    and moved it in the dispatch order. Missing costs are filled by sampling
+    with ``rng`` (seeded), so builds are reproducible.
+    '''
+
     selected_columns = [
-        "UniqueID", "ORISPL", "PLNGENAN",  "RegionName", "StateName", "CountyName", "NERC",
-        "PlantType", "FuelType", "FossilUnit", "Capacity", "Firing", "Bottom",
-        "EMFControls", "FOMCost" , "FuelUseTotal", "FuelCostTotal", "VOMCostTotal",
-        "UTLSRVNM", "SUBRGN", "FIPSST", "FIPSCNTY", "LAT", "LON", "PLPRMFL", "PLNOXRTA",
-        "PLSO2RTA", "PLCO2RTA", "PLCH4RTA", "PLN2ORTA", "HeatRate"
-        ]
+        'UniqueID', 'ORISPL', 'PLNGENAN', 'RegionName', 'StateName', 'CountyName', 'NERC',
+        'PlantType', 'FuelType', 'FossilUnit', 'Capacity', 'Firing', 'Bottom',
+        'EMFControls', 'FOMCost', 'FuelUseTotal', 'FuelCostTotal', 'VOMCostTotal',
+        'UTLSRVNM', 'SUBRGN', 'FIPSST', 'FIPSCNTY', 'LAT', 'LON', 'PLPRMFL', 'PLNOXRTA',
+        'PLSO2RTA', 'PLCO2RTA', 'PLCH4RTA', 'PLN2ORTA', 'HeatRate',
+    ]
 
-    merged_short = input_df[selected_columns].copy()
-    merged_short["FuelCost[$/MWh]"] = (
-        (merged_short["FuelCostTotal"] / (merged_short["FuelUseTotal"] + 1)) *
-        merged_short["HeatRate"]
-        ) / 1000
-    # Define the plant types that should use VOMCostTotal directly
-    plant_types_direct_vom = [
-        "Solar", "Solar PV", "Wind", "Hydro", "Energy Storage", "Solar Thermal",
-        "New Battery Storage", "Offshore Wind"
-        ]
+    frame = input_df[selected_columns].copy()
 
-    # Calculate VOMCost[$/MWh] with conditions
-    merged_short["VOMCost[$/MWh]"] = np.where(
-        merged_short["PlantType"].isin(plant_types_direct_vom),
-        merged_short["VOMCostTotal"],
-        (
-            ((merged_short["VOMCostTotal"] / (merged_short["FuelUseTotal"] + 1)) *
-                merged_short["HeatRate"]) / 1000
-            )
+    frame['FuelCost[$/MWh]'] = (frame['FuelCostTotal'] / (frame['FuelUseTotal'] + 1)) * frame['HeatRate'] / 1000
+
+    direct_vom = ['Solar', 'Solar PV', 'Wind', 'Hydro', 'Energy Storage', 'Solar Thermal', 'New Battery Storage',
+                  'Offshore Wind']
+
+    frame['VOMCost[$/MWh]'] = np.where(
+        frame['PlantType'].isin(direct_vom),
+        frame['VOMCostTotal'],
+        (frame['VOMCostTotal'] / (frame['FuelUseTotal'] + 1)) * frame['HeatRate'] / 1000,
     )
 
-    # Calculate FOMCost[$/MWh] with conditions
-    merged_short["FOMCost[$/MWh]"] = np.where(
-        merged_short["PlantType"].isin(plant_types_direct_vom),
-        merged_short["FOMCost"],
-        (((merged_short["FOMCost"] * 1e6)) / (merged_short["Capacity"] * 8760))
-    )
+    for idx in frame.index[frame['NERC'].isna()]:
 
-    # Add FOMCost[$/MWh] to VOMCost[$/MWh] if PlantType is Nuclear
-    merged_short["VOMCost[$/MWh]"] = np.where(
-        merged_short["PlantType"] == "Nuclear",
-        merged_short["VOMCost[$/MWh]"] + merged_short["FOMCost[$/MWh]"],
-        merged_short["VOMCost[$/MWh]"]
-    )
+        mode = frame.loc[frame['RegionName'] == frame.at[idx, 'RegionName'], 'NERC'].mode()
 
-    # Identify rows with NaN values in the "NERC" column
-    nan_indices = merged_short[merged_short['NERC'].isna()].index
+        if not mode.empty:
 
-    # Fill NaN values in "NERC" column with mode of "NERC" for the same region
-    for idx in nan_indices:
+            frame.at[idx, 'NERC'] = mode.iloc[0]
 
-        region = merged_short.at[idx, 'RegionName']
-        region_mode = merged_short[merged_short['RegionName'] == region]['NERC'].mode()
+    frame['FuelType'] = frame.apply(map_fuel_type, axis=1)
+    frame = frame[~(frame['FuelType'].isna() & (frame['PlantType'] != 'IMPORT'))].reset_index(drop=True)
 
-        if not region_mode.empty:
+    frame = _fill_low_costs(frame, 'FuelCost[$/MWh]', 0.5, rng)
+    frame = _fill_low_costs(frame, 'VOMCost[$/MWh]', 2.0, rng)
 
-            merged_short.at[idx, 'NERC'] = region_mode.iloc[0]
+    frame['Fuel_VOM_Cost'] = frame['FuelCost[$/MWh]'] + frame['VOMCost[$/MWh]']
 
-    merged_short["FuelType"] = merged_short.apply(map_fuel_type, axis=1)
-    merged_short = (
-        merged_short[~(
-            merged_short["FuelType"].isna() & (merged_short["PlantType"] != "IMPORT")
-            )].reset_index(drop=True)
-        )
+    return frame
 
-    # return
-
-    for idx, row in merged_short.iterrows():
-
-        fuel_type = row['FuelType']
-        fuel_costs = merged_short[(merged_short['FuelType'] == fuel_type) & (merged_short['FuelCost[$/MWh]'] > 1)]['FuelCost[$/MWh]']
-        mean_cost = fuel_costs.mean()
-        std_cost = fuel_costs.std()
-        threshold = mean_cost - (1/2) * std_cost
-
-        if threshold < 0:
-
-            threshold = 0
-
-        if row['FuelCost[$/MWh]'] <= threshold:
-            non_zero_costs = merged_short[(merged_short['FuelType'] == row['FuelType']) & (merged_short['RegionName'] == row['RegionName']) & (merged_short['FuelCost[$/MWh]'] > threshold)]['FuelCost[$/MWh]']
-            
-            if not non_zero_costs.empty:
-                merged_short.at[idx, 'FuelCost[$/MWh]'] = np.random.choice(non_zero_costs)
-
-            if merged_short.at[idx, 'FuelCost[$/MWh]'] <= threshold:
-
-                state_fuel_costs = merged_short[(merged_short['FuelType'] == fuel_type) & (merged_short['StateName'] == row['StateName']) & (merged_short['FuelCost[$/MWh]'] > threshold)]['FuelCost[$/MWh]']
-                non_zero_costs = state_fuel_costs[state_fuel_costs > threshold]
-
-                if not non_zero_costs.empty:
-
-                    merged_short.at[idx, 'FuelCost[$/MWh]'] = np.random.choice(non_zero_costs)
-
-                if merged_short.at[idx, 'FuelCost[$/MWh]'] <= threshold:
-
-                    adj_fuel_costs = merged_short[(merged_short['FuelType'] == fuel_type) & (merged_short['NERC'] == row['NERC']) & (merged_short['FuelCost[$/MWh]'] > threshold)]['FuelCost[$/MWh]']
-                    non_zero_costs = adj_fuel_costs[adj_fuel_costs > threshold]
-
-                    if not non_zero_costs.empty:
-
-                        merged_short.at[idx, 'FuelCost[$/MWh]'] = np.random.choice(non_zero_costs)
-
-                    if merged_short.at[idx, 'FuelCost[$/MWh]'] <= threshold:
-
-                        all_fuel_costs = merged_short[(merged_short['FuelType'] == fuel_type) & (merged_short['FuelCost[$/MWh]'] > threshold)]['FuelCost[$/MWh]']
-                        non_zero_costs = all_fuel_costs[all_fuel_costs > threshold]
-
-                        if not non_zero_costs.empty:
-
-                            merged_short.at[idx, 'FuelCost[$/MWh]'] = np.random.choice(non_zero_costs)
-
-    for idx, row in merged_short.iterrows():
-
-        fuel_type = row['FuelType']
-        fuel_costs = merged_short[(merged_short['FuelType'] == fuel_type) & (merged_short['VOMCost[$/MWh]'] > 1)]['VOMCost[$/MWh]']
-        mean_cost = fuel_costs.mean()
-        std_cost = fuel_costs.std()
-        threshold = mean_cost - (2) * std_cost
-
-        if threshold < 0:
-
-            threshold = 0
-
-        if row['VOMCost[$/MWh]'] <= threshold:
-
-            non_zero_costs = merged_short[(merged_short['FuelType'] == row['FuelType']) & (merged_short['RegionName'] == row['RegionName']) & (merged_short['VOMCost[$/MWh]'] > threshold)]['VOMCost[$/MWh]']
-            
-            if not non_zero_costs.empty:
-
-                merged_short.at[idx, 'VOMCost[$/MWh]'] = np.random.choice(non_zero_costs)
-
-            if merged_short.at[idx, 'VOMCost[$/MWh]'] <= threshold:
-
-                state_fuel_costs = merged_short[(merged_short['FuelType'] == fuel_type) & (merged_short['StateName'] == row['StateName']) & (merged_short['VOMCost[$/MWh]'] > threshold)]['VOMCost[$/MWh]']
-                non_zero_costs = state_fuel_costs[state_fuel_costs > threshold]
-
-                if not non_zero_costs.empty:
-
-                    merged_short.at[idx, 'VOMCost[$/MWh]'] = np.random.choice(non_zero_costs)
-
-                if merged_short.at[idx, 'VOMCost[$/MWh]'] <= threshold:
-
-                    adj_fuel_costs = merged_short[(merged_short['FuelType'] == fuel_type) & (merged_short['NERC'] == row['NERC']) & (merged_short['VOMCost[$/MWh]'] > threshold)]['VOMCost[$/MWh]']
-                    non_zero_costs = adj_fuel_costs[adj_fuel_costs > threshold]
-
-                    if not non_zero_costs.empty:
-
-                        merged_short.at[idx, 'VOMCost[$/MWh]'] = np.random.choice(non_zero_costs)
-
-                    if merged_short.at[idx, 'VOMCost[$/MWh]'] <= threshold:
-
-                        all_fuel_costs = merged_short[(merged_short['FuelType'] == fuel_type) & (merged_short['VOMCost[$/MWh]'] > threshold)]['VOMCost[$/MWh]']
-                        non_zero_costs = all_fuel_costs[all_fuel_costs > threshold]
-
-                        if not non_zero_costs.empty:
-
-                            merged_short.at[idx, 'VOMCost[$/MWh]'] = np.random.choice(non_zero_costs)
-
-    merged_short["Fuel_VOM_Cost"] = merged_short["FuelCost[$/MWh]"] + merged_short["VOMCost[$/MWh]"]
-
-    return merged_short
 
 def merging_data(plant, parsed):
 
-    parsed.loc[:, "ORISCode"] = parsed["ORISCode"].copy()
-    parsed["ORISPL"] = parsed["ORISCode"]
-    merged = pd.merge(parsed, plant, how = "left", on = "ORISPL")
-    merged = merged.dropna(how = 'all')
+    parsed = parsed.copy()
+    parsed['ORISPL'] = parsed['ORISCode']
+    merged = pd.merge(parsed, plant, how='left', on='ORISPL')
 
-    return merged
+    return merged.dropna(how='all')

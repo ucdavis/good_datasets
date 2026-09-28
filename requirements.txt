@@ -1,0 +1,9 @@
+pandas>=2.2
+numpy>=1.24
+openpyxl>=3.1
+networkx>=3.2
+scipy>=1.10
+pytest>=7
+# GOOD 2.0 validates the outputs. Pinned to the branch of ucdavis/good_model#3;
+# switch to the release tag once that pull request is merged.
+good @ git+https://github.com/ucdavis/good_model.git@v2.0-review-fixes

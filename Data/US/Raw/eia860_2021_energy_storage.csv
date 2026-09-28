@@ -1,0 +1,341 @@
+Plant Code,Plant Name,State,Generator ID,Status,Technology,Prime Mover,Nameplate Capacity (MW),Nameplate Energy Capacity (MWh),Maximum Charge Rate (MW),Maximum Discharge Rate (MW)
+141,Agua Fria,AZ,AFSB1,OP,Batteries,BA,25.0,100,25,25
+260,Dynegy Moss Landing Power Plant Hybrid,CA,BAT1,OP,Batteries,BA,300.0,300,300,300
+260,Dynegy Moss Landing Power Plant Hybrid,CA,BAT2,OP,Batteries,BA,100.0,100,100,100
+389,El Centro Hybrid,CA,BESS,OP,Batteries,BA,30.0,20,30,30
+792,Palaau Power Hybrid,HI,BAT1,OP,Batteries,BA,2.0,2,0.5,0.5
+990,Harding Street,IN,BAT1,OP,Batteries,BA,20.0,20,20,20
+1016,Butler-Warner Generation Plant,NC,11,OP,Batteries,BA,0.5,0.5,0.3,0.5
+1507,William F Wyman Hybrid,ME,BESS,OP,Batteries,BA,16.7,10.9,16.7,16.2
+1615,Nantucket Hybrid,MA,20,OP,Batteries,BA,6.0,48,6,6
+1682,Cleary Flood Hybrid,MA,BS1,OP,Batteries,BA,3.0,6,3,3
+2830,Walter C Beckjord,OH,BECK1,OP,Batteries,BA,2.0,1,2,2
+2830,Walter C Beckjord,OH,BECK2,OP,Batteries,BA,2.0,0.8,2,2
+6304,Kotzebue Hybrid,AK,ES1,OP,Batteries,BA,1.2,1,1.2,1.2
+6377,Ocracoke Hybrid,NC,BAT,OP,Batteries,BA,1.0,1,0.5,0.5
+6704,Pebbly Beach Generating Station Hybrid,CA,NASB1,OP,Batteries,BA,1.0,6.8,1,1
+7063,McIntosh (AL),AL,1,OP,Natural Gas with Compressed Air Storage,CE,110.0,110,52,110
+50300,VESI Pomona,CA,BESS1,OP,Batteries,BA,20.0,20,20,20
+54134,Great Lakes Hydro America - ME,ME,BES1,OP,Batteries,BA,10.0,10,4,5
+54134,Great Lakes Hydro America - ME,ME,BES2,OP,Batteries,BA,10.0,10,4,5
+54296,Biola University Hybrid,CA,BATT,OP,Batteries,BA,0.3,0.5,0.3,0.3
+55370,"Green Mountain Storage, LLC",PA,BGM,OP,Batteries,BA,10.4,10.4,10.4,10.4
+56472,Grapeland Hybrid,CA,BA1,OP,Batteries,BA,10.0,10,10,10
+56475,Center Hybrid,CA,BA1,OP,Batteries,BA,10.0,10,10,10
+56812,Solana Generating Station,AZ,GEN 1,OP,Solar Thermal with Energy Storage,CP,140.0, , , 
+56812,Solana Generating Station,AZ,GEN2,OP,Solar Thermal with Energy Storage,CP,140.0, , , 
+56961,Notrees Windpower Hybrid,TX,BATT,OP,Batteries,BA,36.0,13.6,36,36
+56981,Pyron Wind Farm LLC Hybrid,TX,PYRBT,OP,Batteries,BA,9.9,9.9,9.9,9.9
+56984,Inadale Wind Farm LLC Hybrid,TX,INABT,OP,Batteries,BA,9.9,9.9,9.9,9.9
+57045,Rolling Thunder Wind Farm Hybrid,SD,2,OP,Batteries,BA,0.8,0.8,0.3,0.3
+57082,Kaheawa Wind Power II LLC,HI,2,OP,Batteries,BA,10.0,20,10,10
+57275,Crescent Dunes Solar Energy,NV,TSE-1,OP,Solar Thermal with Energy Storage,CP,125.0, , , 
+57325,FPL Energy Illinois Wind LLC Hybrid,IL,BFT,OP,Batteries,BA,20.0,8.3,20,20
+57447,Laurel Mountain Hybrid,WV,2,OP,Batteries,BA,16.0,16,16,16
+57583,Battery Energy Storage System,AK,BESS,OP,Batteries,BA,40.0,11,4,40
+57584,University of California San Diego Hybrid,CA,BS1,OP,Batteries,BA,2.5,2.5,2.5,2.5
+57710,Stephentown Spindle,NY,SRS1,OP,Flywheels,FW,20.0,5,20,20
+57716,Hazle Spindle,PA,HRS1,OP,Flywheels,FW,20.0,5,20,20
+57996,Auwahi Wind Energy Hybrid,HI,AWEB,OP,Batteries,BA,11.0,4.4,11,11
+58236,Marshalltown Generating Station,IA,BESS1,OP,Batteries,BA,0.3,0.6,0.3,0.3
+58405,ESS Battery Microgrid,AK,1,OP,Batteries,BA,3.0,3,3,3
+58462,McCoy Solar Energy Project Hybrid,CA,MCST1,OP,Batteries,BA,230.0,920,230,230
+58475,Battery Utility of Ohio,OH,BOU,OA,Batteries,BA,4.0,2,4,4
+58537,OCI Alamo Solar I Hybrid,TX,ASTRO,OP,Batteries,BA,1.0,0.3,1,1
+58585,Sierra Nevada Brewing Co Hybrid,CA,BESS,OP,Batteries,BA,0.5,1,0.5,0.5
+58625,Santa Rita Jail Hybrid,CA,SRJBA,OS,Batteries,BA,2.0,4,0.3,0.3
+58639,KRS I Anahola Solar Hybrid,HI,B5B6,OP,Batteries,BA,6.0,4.6,2,6
+58899,Prosperity Energy Storage Facility Hybrid,NM,GEN-2,OP,Batteries,BA,0.8,1.3,0.5,0.5
+59150,RE Mustang LLC,CA,BESS1,OP,Batteries,BA,75.0,75,75,75
+59296,Northwest Ohio Wind,OH,NWO-B,OP,Batteries,BA,0.8,3.8,0.2,0.2
+59661,Tehachapi Energy Storage Project,CA,TSP1,OS,Batteries,BA,8.0,32,8,8
+59772,KCP&L SmartGrid Innovation Park,MO,1,OA,Batteries,BA,1.0,1,1,1
+59939,RE Tranquillity,CA,BESS1,OP,Batteries,BA,37.0,128,32,32
+59949,AES Warrior Run Energy Storage Project,MD,BESS1,OP,Batteries,BA,11.0,5,5,5
+59957,Grand Ridge Battery Projects,IL,GIVB,OP,Batteries,BA,4.5,1,1.5,1.5
+59957,Grand Ridge Battery Projects,IL,GRES,OP,Batteries,BA,31.5,12.5,31.5,31.5
+59959,Elwood Energy Storage Center,IL,WCBS,OS,Batteries,BA,19.8,7.9,19.8,19.8
+59960,Jake Energy Storage Center,IL,JBS,OS,Batteries,BA,19.8,7.9,19.8,19.8
+59993,Babcock Solar Energy Center Hybrid,FL,BA,OP,Batteries,BA,10.0,40,10,10
+60014,Manatee Solar Energy Center,FL,BMS,OP,Batteries,BA,409.0,900,74.5,409
+60016,MESA 1,WA,A,OA,Batteries,BA,1.0,0.5,1,1
+60016,MESA 1,WA,B,OA,Batteries,BA,1.0,0.5,1,1
+60061,Citrus Solar Energy Center Hybrid,FL,BA,OP,Batteries,BA,4.0,16,4,4
+60092,"Blythe Solar II, LLC",CA,BLST2,OP,Batteries,BA,115.0,538.6,115,115
+60093,"Blythe Solar 110, LLC",CA,BES1,OP,Batteries,BA,63.0,301.2,63,63
+60094,"Blythe Solar III, LLC Hybrid",CA,BLST3,OP,Batteries,BA,115.0,538.6,115,115
+60123,Castle Gap Solar Hybrid,TX,BAT1,OP,Batteries,BA,9.9,42,9.9,9.9
+60231,Genentech-Oceanside Hybrid,CA,BA1,OP,Batteries,BA,2.0,2,1,1
+60233,RE Garland,CA,BESS1,OP,Batteries,BA,45.0,176,44,44
+60233,RE Garland,CA,BESS2,OP,Batteries,BA,43.0,176,44,44
+60249,Silicon Valley Clean Water,CA,BES,OP,Batteries,BA,1.0,2,1,1
+60297,Clinton Battery,OH,1,OP,Batteries,BA,10.0,4.1,5,5
+60299,HMV Minster Energy Storage System,OH,MIN02,OS,Batteries,BA,7.0,7,7,7
+60390,Beech Ridge Energy Storage,WV,BRES,OP,Batteries,BA,31.5,12.5,31.5,31.5
+60441,Salem Smart Power Center,OR,SSPC,SB,Batteries,BA,5.0,1.3,5,5
+60444,Glacier Battery Storage,WA,GLA,OP,Batteries,BA,2.0,4.4,2,2
+60491,Springbok 3 Solar Farm Hybrid,CA,SB3BS,OP,Batteries,BA,1.5,1.5,1.5,1.5
+60506,ETT Presidio NaS Battery,TX,BOB,OP,Batteries,BA,4.0,4,4,4
+60518,Stafford Hill Solar Hybrid,VT,BA1,OP,Batteries,BA,2.0,3.4,2,2
+60546,KIUC Kapaia PV and BA Storage Project Hybrid,HI,BA1,OP,Batteries,BA,13.0,52,11,11
+60561,Cedartown Battery Energy Storage Project,GA,1,OP,Batteries,BA,1.0,2,1,1
+60562,GMP Solar - Panton Hybrid,VT,GMPBP,OP,Batteries,BA,1.0,4,1,1
+60563,Flywheel Energy Storage System Microgrid,AK,FESS,OP,Flywheels,FW,2.0,2,2,2
+60565,Borrego Springs Energy Storage,CA,SES1,OA,Batteries,BA,0.5,1.5,0.5,0.5
+60565,Borrego Springs Energy Storage,CA,SES2,OP,Batteries,BA,1.0,3,1,1
+60566,Pala Energy Storage Yard,CA,SES1,OP,Batteries,BA,0.5,1.5,0.5,0.5
+60566,Pala Energy Storage Yard,CA,SES2,OS,Batteries,BA,1.0,2,1,1
+60567,Ortega Highway Energy Storage,CA,SES1,OP,Batteries,BA,1.0,3,1,1
+60567,Ortega Highway Energy Storage,CA,SES2,OA,Batteries,BA,1.0,3,1,1
+60568,Canyon Crest Academy,CA,SES,OP,Batteries,BA,1.0,3,1,1
+60569,El Cajon Energy Storage,CA,SES,OP,Batteries,BA,7.5,30,7.5,7.5
+60570,Escondido Energy Storage,CA,SES,OP,Batteries,BA,30.0,120,30,30
+60607,CMEEC - Polaris Park Solar Hybrid,CT,BA1,OP,Batteries,BA,0.8,3.3,0.8,0.8
+60609,CMEEC - Norwich Stott St Solar Hybrid,CT,BA1,OP,Batteries,BA,0.8,3,0.8,0.8
+60641,Henrietta D Energy Storage LLC,CA,HDES1,OP,Batteries,BA,10.0,40,10,10
+60649,Rabbit Hill Energy Storage Project,TX,1,OP,Batteries,BA,9.9,9.9,9.9,9.9
+60654,Townsite Solar Project Hybrid,NV,GEN02,OP,Batteries,BA,90.0,360,90,90
+60656,McHenry Battery Storage,IL,MCH1,OP,Batteries,BA,19.8,7.8,19.8,19.8
+60660,Willey Battery Utility,OH,WBU,OP,Batteries,BA,6.0,2,6,6
+60661,Mira Loma Energy Storage Facility,CA,013A,OP,Batteries,BA,10.0,40,10,10
+60661,Mira Loma Energy Storage Facility,CA,013B,OP,Batteries,BA,10.0,40,10,10
+60690,"Blue Summit Storage, LLC",TX,WBSS,OP,Batteries,BA,30.0,12.6,30,30
+60698,Stanton Energy Reliability Center Hybrid,CA,BESS1,OP,Batteries,BA,10.0,4.5,10,10
+60698,Stanton Energy Reliability Center Hybrid,CA,BESS2,OP,Batteries,BA,10.0,4.5,10,10
+60760,Millikan BESS,CA,PE101,OP,Batteries,BA,2.0,8,2,2
+60815,Hampshire College Hybrid,MA,BA1,OP,Batteries,BA,0.5,0.5,0.3,0.3
+60815,Hampshire College Hybrid,MA,BA2,OP,Batteries,BA,0.5,0.5,0.3,0.3
+60906,Mt. Tom Solar Project Hybrid,MA,BA1,OP,Batteries,BA,3.1,6.1,2,3.1
+60959,Chocksett Rd Energy Storage Project,MA,BA1,OP,Batteries,BA,2.0,3.9,2,2
+60974,Glendale Battery Energy Storage System,CA,2BESS,OP,Batteries,BA,2.0,1,1,2
+60996,Iron Horse Battery Storage Hybrid,AZ,BA1,OP,Batteries,BA,10.0,2.5,10,10
+61068,AES Lawai Solar Hybrid,HI,LAWA2,OP,Batteries,BA,20.0,100,20,20
+61098,Battle Mountain Solar Project,NV,BMBS,OP,Batteries,BA,25.0,25,25,25
+61107,Vanadium Redox Flow Battery Plant,CA,VRF,OP,Batteries,BA,2.0,8,2,2
+61197,Pima Energy Storage System,AZ,PIMA,OP,Batteries,BA,10.0,2.5,8,10
+61204,"AES ES ALAMITOS, LLC",CA,ALMTS,OP,Batteries,BA,100.0,400,100,100
+61334,Volkman Road Solar Array Hybrid,IN,VRSA2,OP,Batteries,BA,1.0,4.6,1,1
+61362,NRG Elbow Creek Energy Storage Project,TX,ECBS,OP,Batteries,BA,2.0,0.7,2,2
+61366,Top Gun Energy Storage,CA,TGES,OP,Batteries,BA,30.0,120,30,30
+61431,Beacon BESS 1,CA,BCNB1,OP,Batteries,BA,20.0,10,20,20
+61439,Panasonic Carport Solar Hybrid,CO,PANBS,OP,Batteries,BA,1.0,2.2,1,1
+61473,Hopewell Valley High School Hybrid,NJ,BA1,OP,Batteries,BA,1.0,1,0.5,0.5
+61647,New Orleans Solar Power Plant,LA,NOSPB,OP,Batteries,BA,0.5,0.5,0.5,0.5
+61661,Vista Energy Storage System ,CA,VISTA,OP,Batteries,BA,40.0,40,40,40
+61678,Pinal Central Energy Center Hybrid,AZ,BA1,OP,Batteries,BA,10.0,40,10,10
+61679,Cox Battery Energy Storage,MO,1,OP,Batteries,BA,1.2,1.5,1.2,1
+61721,HEBT WLA 1,CA,WLA01,OP,Batteries,BA,1.0,6.9,1,1
+61722,HEBT Irvine 1,CA,IRV01,OP,Batteries,BA,1.0,6.5,1,1
+61722,HEBT Irvine 1,CA,IRV1W,OP,Batteries,BA,4.5,27,4.5,4.5
+61723,HEBT Irvine 2,CA,IRV06,OP,Batteries,BA,2.5,15,2.5,2.5
+61723,HEBT Irvine 2,CA,IRV2W,OP,Batteries,BA,3.3,19.8,3.3,3.3
+61730,MA Solar Storage 1 Hybrid,MA,61730,OP,Batteries,BA,1.0,2,1,1
+61737,Navy Yard Peaker Station,PA,GEN5,OP,Batteries,BA,6.2,6.2,6.2,6.2
+61739,Lockheed Martin RMS Syracuse,NY,SYR1,OP,Batteries,BA,1.0,1.3,1,1
+61741,Kingsberry Energy Storage System,TX,KBESS,OP,Batteries,BA,1.5,3,1.5,1.5
+61742,System Control Center,TX,GEN1,SB,Flywheels,FW,2.5,2.5,2.5,2.5
+61742,System Control Center,TX,GEN2,SB,Flywheels,FW,2.5,2.5,2.5,2.5
+61763,Sunshine Gateway Solar Energy Center,FL,2,OP,Batteries,BA,30.0,75,30,30
+61795,Pacific Union College BESS,CA,12649,OP,Batteries,BA,1.0,2,1,1
+61861,AES ES GILBERT,AZ,SRP,OP,Batteries,BA,10.0,40,10,10
+61891,"Stryker 22, L.L.C.",NJ,EDGRD,OP,Batteries,BA,19.8,19.8,19.8,19.8
+61892,Plumsted 537 LLC,NJ,PLMST,OP,Batteries,BA,19.8,19.8,19.8,19.8
+61901,Redstone Arsenal Hybrid,AL,BA,OP,Batteries,BA,1.0,2,0.5,0.5
+61909,Parkview Battery,MI,PKVWB,OP,Batteries,BA,1.1,1,1.1,1.1
+61913,Punkin Center Battery Storage,AZ,B1,OP,Batteries,BA,2.0,8,2,2
+61923,ACUA,NJ,VACUA,OP,Batteries,BA,1.0,1,1,1
+61925,Casa Mesa Wind Energy Center Hybrid,NM,CMNMB,OP,Batteries,BA,1.0,1,1,1
+61956,MCRD Parris Island PV Hybrid,SC,TBESS,OP,Batteries,BA,4.0,4,4,4
+61990,TAC-Distributed Energy Resource Hybrid,IL,BA,OP,Batteries,BA,0.3,0.5,0.3,0.3
+61993,Gavilan Community College Solar Project,CA,GDCBA,OP,Batteries,BA,0.5,0.5,0.2,0.3
+61995,UC Merced Solar Hybrid,CA,UCMBA,OP,Batteries,BA,0.5,0.9,0.5,0.5
+62027,Caldwell Wastewater Treatment Plant Hybrid,NJ,BAT1,OP,Batteries,BA,1.0,2,0.5,0.5
+62147,KCE NY 1,NY,KNY1,OP,Batteries,BA,20.0,8.4,20,20
+62219,Ashburnham Energy Storage Project,MA,AMLPB,OP,Batteries,BA,3.0,3,3,3
+62257,Station 9 Energy Storage System,MA,ESS1,OP,Batteries,BA,2.0,4.2,2,2
+62373,I25 Battery Storage,CO,I25BA,OP,Batteries,BA,4.0,16,4,4
+62381,GMP Solar/Storage-Milton Hybrid,VT,GMPBM,OP,Batteries,BA,2.0,8,2,2
+62382,GMP Solar/Storage-Ferrisburgh Hybrid,VT,GMPBF,OP,Batteries,BA,2.0,8,2,2
+62383,GMP Solar/Storage-Essex Hybrid,VT,GMPBE,OP,Batteries,BA,2.0,8,2,2
+62441,Kearny Mesa Storage LLC,CA,U1,OP,Batteries,BA,1.0,1,1,1
+62444,Meyersdale Battery,PA,BMY,OP,Batteries,BA,18.0,12.1,18,18
+62490,Echo River Solar,FL,2,OP,Batteries,BA,30.0,75,30,30
+62497,Orange County Energy Storage 2,CA,OCES2,OP,Batteries,BA,9.0,36,9,9
+62499,Orange County Energy Storage 3,CA,OCES3,OP,Batteries,BA,6.0,24,6,6
+62569,Knoxville Battery Energy Storage,IA,ES1,OP,Batteries,BA,1.1,4,1.1,1.1
+62585,Beebe Substation Battery Storage,MA,WAKFD,OP,Batteries,BA,3.0,3,3,3
+62609,Commerce ESS,TX,BA1,OP,Batteries,BA,10.0,10,10,10
+62644,Minuteman Energy Storage,MA,MMES,OP,Batteries,BA,5.0,10,5,5
+62652,Happy Hollow CSG Hybrid,MA,HHESS,OP,Batteries,BA,3.3,6.6,3.3,3.3
+62682,Noland Wastewater Treatment Plant Hybrid,AR,FAYEB,OP,Batteries,BA,6.0,13.1,6,6
+62683,Westside Wastewater Treatment Plant Hybrid,AR,FAYWB,OP,Batteries,BA,6.0,13.1,6,6
+62695,CED Northampton Solar LLC Hybrid,MA,NSES,OP,Batteries,BA,2.3,4.9,2,2
+62714,Eyak Service Center BESS,AK,BESS1,OP,Batteries,BA,1.0,0.9,1,1
+62733,East Hampton Energy Storage Center,NY,BEH,OP,Batteries,BA,5.0,40,5,5
+62734,Montauk Energy Storage Center,NY,BME,OP,Batteries,BA,5.0,40,5,5
+62753,Prospect Storage,TX,BESS,OP,Batteries,BA,9.9,10,9.9,9.9
+62754,San Diego International Airport BESS,CA,BA,OP,Batteries,BA,2.0,4,2,2
+62801,Vallecito,CA,ORN34,OP,Batteries,BA,10.0,10,10,10
+62835,Acushnet Ball Plant 2,MA,ESS-1,OP,Batteries,BA,1.0,2,1,1
+62835,Acushnet Ball Plant 2,MA,ESS-2,OP,Batteries,BA,0.5,1,0.5,0.5
+62839,98th Street Battery Storage Station,NY,ESS98,OP,Batteries,BA,2.0,12,1,2
+62856,Marengo Battery Storage LLC,IL,MBSS,OA,Batteries,BA,20.0,20,20,20
+62862,Nabb Battery Energy Storage System,IN,ES1,OP,Batteries,BA,5.0,5,5,5
+62874,Acorn I Energy Storage LLC,CA,ACOR1,OP,Batteries,BA,2.0,6,2,2
+62875,Wildcat I Energy Storage LLC,CA,WILD1,OP,Batteries,BA,3.0,12,3,3
+62889,Hecate Energy Johanna Facility,CA,HEGJF,OP,Batteries,BA,10.0,40,10,10
+62889,Hecate Energy Johanna Facility,CA,HJFII,OP,Batteries,BA,10.0,40,10,10
+62907,Hinesburg,VT,VEC,OP,Batteries,BA,1.9,1.9,1.9,1.9
+62908,Anoka BESS,MN,BA,OP,Batteries,BA,6.0,12,6,6
+62937,Athens BESS,MN,BA,OP,Batteries,BA,6.0,12,6,6
+62969,Syncarpha Puddon I Hybrid CSG,MA,SYP1B,OP,Batteries,BA,4.0,8,4,4
+62970,Syncarpha Puddon II Hybrid CSG,MA,SYP2B,OP,Batteries,BA,4.0,8,4,4
+62972,Syncarpha Leicester Hybrid CSG,MA,SYLEB,OP,Batteries,BA,12.8,4.2,2,2
+62973,Syncarpha Halifax Hybrid CSG,MA,SYHAB,OP,Batteries,BA,1.6,3.2,1.6,1.6
+62975,Syncarpha Blandford Hybrid CSG,MA,SYBLB,OP,Batteries,BA,3.9,7.9,3.9,3.9
+62976,Syncarpha Northampton Hybrid CSG,MA,SYNOB,OP,Batteries,BA,2.0,4,2,2
+62978,Syncarpha Northbridge II Hybrid CSG,MA,SYN2B,OP,Batteries,BA,3.0,6,3,3
+62981,East Pulaski BESS,NY,BESS,OP,Batteries,BA,2.0,4.2,2,2
+62999,"Finchville Solar, LLC Hybrid CSG",NY,BESS,OP,Batteries,BA,3.0,4.4,1.9,1.9
+63000,"RT 52 Walden Solar 1, LLC Hybrid",NY,BESS,OP,Batteries,BA,4.0,8.8,3.9,3.9
+63011,"Cronin Road Solar 1, LLC CSG Hybrid",MA,BESS,OP,Batteries,BA,1.5,7.7,1.5,1.5
+63022,Fort Carson Battery Energy Storage System,CO,1,OP,Batteries,BA,4.2,8.5,4.2,4.2
+63044,Ryan Road Solar LLC Hybrid(CSG),MA,BESS,OP,Batteries,BA,4.3,14,4.3,4.3
+63064,Asheville-Rock Hill Battery,NC,ES1,OP,Batteries,BA,8.8,8.8,8.8,8.8
+63090,Athens - Coopers Corner BESS,MN,COOPR,OP,Batteries,BA,3.0,6,3,3
+63186,Imeson Solar,FL,IMESS,OP,Batteries,BA,5.0,3.8,1.5,1.5
+63214,Middleton Solar Park,MA,MDB02,OP,Batteries,BA,3.0,6.6,3,2.7
+63255,2W Permian Solar Project Hybrid,TX,2WPBA,OP,Batteries,BA,40.0,40,40,40
+63264,Partridge Hill Solar Hybrid,MA,BATT,OP,Batteries,BA,1.3,1.5,1.3,1.3
+63280,"AES Kekaha Solar, LLC Hybrid",HI,BESS,OP,Batteries,BA,14.0,70,8,8
+63324,Camp Atterbury Microgrid Hybrid,IN,ES1,OP,Batteries,BA,5.0,5,5,5
+63398,Kearsarge Amesbury Hybrid,MA,AMBAT,OP,Batteries,BA,1.6,3.8,1.5,1.5
+63412,San Diego Zoo,CA,SDZOO,OP,Batteries,BA,1.0,4,1,1
+63415,"Middletown Solar 1, LLC Hybrid CSG",NY,BATT,OP,Batteries,BA,1.6,6.6,1.6,1.6
+63420,Fresno Bullard High School Hybrid,CA,BA903,OP,Batteries,BA,0.4,0.4,0.4,0.4
+63421,Fresno Hoover High School Hybrid,CA,BA291,OP,Batteries,BA,0.2,0.2,0.2,0.2
+63422,Fresno Sunnyside High School Hybrid,CA,BA112,OP,Batteries,BA,0.3,0.3,0.3,0.3
+63458,Rush Springs Energy Storage (BA),OK,RUSHE,OP,Batteries,BA,10.0,20,10,10
+63468,Hurteau Solar Project Hybrid,MA,BATT,OP,Batteries,BA,1.3,1.5,1.3,1.3
+63469,Alicea Solar Project Hybrid CSG,MA,BATT,OP,Batteries,BA,1.5,3,1.5,1.5
+63470,McDougle-Mitchell Solar Project Hybrid CSG,MA,BATT,OP,Batteries,BA,2.9,5.7,2.9,2.9
+63472,Cycz Solar Project CSG Hybrid,MA,BATT,OP,Batteries,BA,1.3,2.5,1.3,1.3
+63473,West A&B Solar Project Hybrid CSG,MA,BATT,OP,Batteries,BA,1.8,3.5,1.8,1.8
+63474,Annese Solar Project Hybrid CSG,MA,BATT,OP,Batteries,BA,3.5,6.7,3.5,3.5
+63475,Randall Solar Project Hybrid,MA,BATT,OP,Batteries,BA,3.3,6,3.2,3.2
+63510,Walnut Unified School District Walnut HS Hybrid,CA,ST1,OP,Batteries,BA,0.5,0.5,0.1,0.1
+63535,Solar BESS Hybrid,GA,TEST,OP,Batteries,BA,1.0,4,1,1
+63585,NY3 Battery,NY,NY3,OP,Batteries,BA,3.0,12,3,3
+63609,Allergan,CA,ALRGN,OP,Batteries,BA,1.5,9,1.5,1.5
+63610,Baker,CA,BAKER,OP,Batteries,BA,1.2,6.3,1.2,1.2
+63611,CSU Long Beach,CA,CSULB,OP,Batteries,BA,2.5,15,2.5,2.5
+63612,DATS,CA,DATS0,OP,Batteries,BA,1.0,6,1,1
+63613,Downey,CA,DOWNY,OP,Batteries,BA,2.0,13,2,2
+63614,LAWRP,CA,LAWRP,OP,Batteries,BA,1.0,5,1,1
+63615,Long Beach Convention Center,CA,LBCON,OP,Batteries,BA,1.5,8.6,1.5,1.5
+63616,OCSD,CA,OCSD1,OP,Batteries,BA,4.9,32.6,4.9,4.9
+63617,SOCCD,CA,SOCCD,OP,Batteries,BA,1.3,7.2,1.3,1.3
+63721,Cool Springs Solar (Hybrid),GA,CSBAT,OP,Batteries,BA,40.0,80,40,40
+63722,Rawhide Prairie Solar Hybrid,CO,BA1,OP,Batteries,BA,1.0,2,1,1
+63735,Silverstrand Grid Energy Storage System,CA,SLV01,OP,Batteries,BA,11.0,44,11,11
+63737,Chisholm Grid Energy Storage System,TX,CHS01,OP,Batteries,BA,100.0,125,100,100
+63763,CES Agawam Tuckahoe Solar Hybrid,MA,ATES,OP,Batteries,BA,2.6,5.2,2.6,2.6
+63774,Mount Kisco Landfill Solar & Storage CSG,NY,KISCB,OP,Batteries,BA,0.5,2.1,0.5,0.7
+63775,Tech Square Microgrid,GA,BESS1,OP,Batteries,BA,0.2,0.4,0.2,0.2
+63804,Partridgeville Hybrid CSG,MA,PBESS,OP,Batteries,BA,2.0,3.9,2,2
+63805,Williamsville Hybrid CSG,MA,WBESS,OP,Batteries,BA,3.3,6.7,3.3,3.3
+63834,Gateway Energy Storage System,CA,GTWAY,OP,Batteries,BA,250.0,250,250,250
+63843,"Johanna Energy Center, LLC",CA,SASP1,OP,Batteries,BA,20.0,20,20,20
+63891,Saticoy,CA,SATCY,OP,Batteries,BA,100.0,400,100,100
+63892,Lily Solar Hybrid,TX,LILYB,OP,Batteries,BA,50.0,76,50,50
+63930,Cal Flats BESS,CA,CF60,OP,Batteries,BA,60.0,242,60,60
+63995,Trenton,FL,ES1,OP,Batteries,BA,11.0,10.1,11,11
+64000,Amaterasu LLC,MA,BESS,OP,Batteries,BA,3.2,6,3.2,3.2
+64103,Desert Harvest II LLC,CA,DH003,OP,Batteries,BA,35.0,140,35,35
+64128,Ware Palmer Road Solar LLC CSG,MA,WPRB,OP,Batteries,BA,2.0,4.5,2,2
+64129,East Brookfield Adams Road Solar LLC CSG,MA,EBARB,OP,Batteries,BA,3.1,6.3,3,3
+64140,"BWC Stony Brook, LLC Hybrid",MA,BESS,OP,Batteries,BA,0.7,1.4,0.7,0.7
+64147,ZPD-PT Solar Project 2017-038 Hybrid LLC,MA,DRAES,OP,Batteries,BA,3.5,6.7,3.5,3.5
+64170,"BWC Muddy Brook, LLC Hybrid",MA,MBES,OP,Batteries,BA,0.9,1.8,0.9,0.9
+64182,"BWC Lake Lashaway, LLC Hybrid",MA,DRAES,OP,Batteries,BA,3.7,9,3.7,3.7
+64185,ZPD-PT Solar Project 2017-023 LLC Hybrid CSG,MA,DRAES,OP,Batteries,BA,1.9,3.5,1.9,1.9
+64187,ZPD-PT Solar Project 2017-021 LLC Hybrid CSG,MA,DRAES,OP,Batteries,BA,0.7,2.5,0.7,0.7
+64198,"Horn Rapids Solar, Storage and Training",WA,HRBE,OP,Batteries,BA,1.0,4,1,1
+64207,Crane Battery Energy Storage System,IN,ES1,OP,Batteries,BA,5.0,5,5,5
+64222,Burt County Solar Hybrid,NE,2,OP,Batteries,BA,0.7,3,0.7,0.7
+64223,Dodge County Solar Hybrid,NE,2,OP,Batteries,BA,0.7,3,0.7,0.7
+64291,Lincoln Medical and Mental Health Center,NY,B1,OP,Batteries,BA,1.0,1,1,1
+64291,Lincoln Medical and Mental Health Center,NY,B2,OP,Batteries,BA,1.0,1,1,1
+64291,Lincoln Medical and Mental Health Center,NY,B3,OP,Batteries,BA,1.0,1,1,1
+64293,Alvin,TX,ALVIN,OP,Batteries,BA,9.9,9.9,9.9,9.9
+64294,Odessa,TX,ODSA,OP,Batteries,BA,9.9,9.9,9.9,9.9
+64295,Angleton,TX,ANGLE,OP,Batteries,BA,9.9,9.9,9.9,9.9
+64296,Brazoria,TX,BRAZ,OP,Batteries,BA,9.9,9.9,9.9,9.9
+64297,Heights,TX,H8S,OP,Batteries,BA,9.9,9.9,9.9,9.9
+64298,Magnolia TX,TX,MANGO,OP,Batteries,BA,9.9,9.9,9.9,9.9
+64312,Bat Cave,TX,BC,OP,Batteries,BA,100.0,110,100,100
+64314,Dickinson,TX,DIKN,OP,Batteries,BA,9.9,9.9,9.9,9.9
+64315,Loop 463,TX,LOOP,OP,Batteries,BA,9.9,9.9,9.9,9.9
+64317,North Fork TX,TX,NF,OP,Batteries,BA,100.0,110,100,100
+64319,Ranchtown,TX,RANCH,OP,Batteries,BA,9.9,9.9,9.9,9.9
+64321,Sweeny,TX,SWNY,OP,Batteries,BA,9.9,9.9,9.9,9.9
+64374,Norwich Solar and Energy Storage CSG,NY,NRWCB,OP,Batteries,BA,5.0,15,3,3
+64375,Decorah Battery,IA,BESS1,OP,Batteries,BA,2.5,2.9,2.5,2.5
+64395,ZPD-PT Solar Project 2017-006 LLC Hybrid,MA,DRAES,OP,Batteries,BA,2.5,5,2.5,2.5
+64400,BYU - Hawaii,HI,BYESS,OP,Batteries,BA,1.9,1.9,1.9,1.9
+64423,TX7 Flat Top,TX,TX7,OP,Batteries,BA,9.9,16.5,9.9,9.9
+64424,TX8 Worsham,TX,TX8,OP,Batteries,BA,9.9,17.9,9.9,9.9
+64425,TX2 Port Lavaca,TX,TX2,OP,Batteries,BA,9.9,11.9,9.9,9.9
+64426,Wilmot Energy Center LLC,AZ,WILBA,OP,Batteries,BA,30.0,60,30,30
+64432,Breckenridge Solar,MA,BBA,OP,Batteries,BA,2.2,4.7,2.2,2.2
+64436,Wilmarth Solar,MA,WILB,OP,Batteries,BA,2.3,4.6,2.3,2.3
+64446,Arlington Microgrid,WA,AMGB,OP,Batteries,BA,1.0,1.4,1,1
+64450,"Grissom Solar, LLC",NC,GSF02,OP,Batteries,BA,10.0,10,5,5
+64453,Volney II,NY,VOLES,OP,Batteries,BA,3.0,12,3,3
+64522,Old Cedar Solar Energy Storage,NC,BAT1,OP,Batteries,BA,1.3,2,1,1
+64528,Gambit Energy Storage - Angleton Storage,TX,1,OP,Batteries,BA,100.0,200,100,100
+64546,Wynwood Energy Storage,FL,1,OP,Batteries,BA,10.0,40,10,10
+64601,County of San Diego COC Hybrid,CA,ESS,OP,Batteries,BA,0.4,1,0.4,0.4
+64611,SEPV Sierra,CA,1,OP,Batteries,BA,6.0,3.4,6,6
+64617,Kearsarge William Way,MA,BWBAT,OP,Batteries,BA,2.6,9.5,2.6,2.6
+64618,Kearsarge Haverhill,MA,HABAT,OP,Batteries,BA,2.0,9,2,2
+64620,Kearsarge Montague BD(CSG),MA,MBBAT,OP,Batteries,BA,1.3,5.1,1.3,1.3
+64624,Hudson - High Desert Hybrid,CA,BESS1,OP,Batteries,BA,50.0,50,50,50
+64627,Blodgett Solar CSG,MA,BLO,OP,Batteries,BA,5.0,4.9,2.2,2.2
+64664,"Clark Road Solar 1, LLC",MA,10605,OP,Batteries,BA,3.3,3,3,3
+64696,"Dunstable Solar 1, LLC",MA,DUBLN,OP,Batteries,BA,4.5,20.2,4.5,4.5
+64712,Sanborn BESS 1,CA,ESSB1,OP,Batteries,BA,100.0,200,100,100
+64713,Sanborn BESS 2,CA,ESSB2,OP,Batteries,BA,100.0,400,100,100
+64719,Glenmere Lake,NY,BESS,OP,Batteries,BA,2.0,7.5,2,2
+64731,Maple(CSG),MA,M2,OP,Batteries,BA,2.3,4.8,2.2,2.2
+64763,Rumford ESS,ME,RUM,OP,Batteries,BA,4.9,10,4.9,4.9
+64764,Madison BTM,ME,MBTM,OP,Batteries,BA,1.5,1.5,1.5,1.5
+64765,Madison ESS,ME,MESS,OP,Batteries,BA,4.9,4.9,4.9,4.9
+64766,Redwood Coast Airport Microgrid,CA,RCAM2,OP,Batteries,BA,2.2,8.8,1.5,1.8
+64875,276 Federal Rd(CSG),MA,276FB,OP,Batteries,BA,3.3,6.9,3.3,3.3
+64876,0 Hammond St CSG,MA,OHAMB,OP,Batteries,BA,5.0,4.9,2.2,2.2
+64877,Edwards Sanborn E3,CA,BESS,OP,Batteries,BA,13.7,31.5,13.2,13.2
+64915,Flower Valley I,TX,FLRV1,OP,Batteries,BA,9.9,19.8,9.9,9.9
+64916,Swoose I,TX,SWOO1,OP,Batteries,BA,9.9,19.8,9.9,9.9
+64917,Triple Butte I,TX,TRBT1,OP,Batteries,BA,7.5,15,7.5,7.5
+64970,59 Federal Rd(CSG),MA,59FBA,OP,Batteries,BA,5.0,20.5,5,5
+64980,UMass Boston,MA,BATT1,OP,Batteries,BA,0.5,2.1,0.5,0.5
+65029,Bissell Solar and Battery Generator,MI,BISBP,OP,Batteries,BA,0.3,0.5,0.3,0.3
+65054,71 Charlotte Furnace Rd Hybrid(CSG),MA,71CBA,OP,Batteries,BA,1.0,5.4,1,1
+65055,77 Farm to Market Rd Hybrid(CSG),MA,77FBA,OP,Batteries,BA,2.2,4.8,2.2,2.2
+65056,160 Tihonet Rd Hybrid(CSG),MA,160BA,OP,Batteries,BA,3.3,6.9,3.3,3.3
+65057,299 Farm to Market Rd Hybrid(CSG),MA,299BA,OP,Batteries,BA,2.3,4.9,2.2,2.2
+65098,South Sioux City Energy Storage,NE,SSCES,OP,Batteries,BA,1.5,3,1.5,1.5
+65114,196 Tremont St(CSG),MA,196BA,OP,Batteries,BA,1.5,8,1.5,1.5
+65174,Cranberry Highway Solar LLC,MA,BA1,OP,Batteries,BA,2.0,4.5,2,2
+65217,South Goshen (Community Solar),NY,BESS,OP,Batteries,BA,4.9,17,4.9,4.9
+65242,Charlemont A,MA,CMSB,OP,Batteries,BA,2.5,3.8,1.5,1.5
+65408,Gilead Oceanside Solar Project,CA,GOSSB,OP,Batteries,BA,0.7,3,0.7,0.7
+65409,Gilead Foster City Solar Project,CA,GFCSB,OP,Batteries,BA,0.5,0.9,0.5,0.5
+65468,Highland Park Borough Solar,NJ,HPBA,OP,Batteries,BA,0.6,2.1,0.5,0.5
+65472,Chukar Battery Energy Storage System,NV,CHUK1,OP,Batteries,BA,10.0,40,10,10
+65568,Google Moffett Park Solar Project,CA,GMSPB,OP,Batteries,BA,0.6,1.1,0.6,0.6
+65569,Gilead Sciences La Verne Rooftop Solar,CA,GSRBA,OP,Batteries,BA,1.1,2.1,1.1,1.1
+65650,Brockelman Road Solar 2,MA,15447,OP,Batteries,BA,2.0,2,1,1
+65836,Toyah Power Station,TX,TOYAH,OP,Batteries,BA,10.4,9.9,9.9,9.9
+65838,Hoef's Road Storage,TX,HOEFS,OP,Batteries,BA,2.0,2,2,2

@@ -1,0 +1,89 @@
+{
+ "good_format": 2,
+ "parameters": {
+  "capacity_credit": {
+   "source": "Wind and solar are PLACEHOLDERS: EPA Platform v6 Tables 4-21 and 4-32 give 0-90% ranges that fall with penetration. Storage: Table 4-35 (100%).",
+   "value": {
+    "battery": 1.0,
+    "pumped hydro": 1.0,
+    "solar": 0.1,
+    "wind": 0.15
+   }
+  },
+  "cost_vintage": {
+   "source": "EPA Platform v6 Table 4-16 vintage used for new wind and solar costs (2016$).",
+   "value": "2023"
+  },
+  "existing_battery": {
+   "source": "Duration per plant from EIA-860 2021 Schedule 3-4 (energy / nameplate power); the default is the fleet median for plants without a match. Efficiency as for new batteries.",
+   "value": {
+    "default_duration": 2.0,
+    "round_trip_efficiency": 0.85
+   }
+  },
+  "fill_seed": {
+   "source": "Seed for sampling fill-in fuel and VOM costs, so builds are reproducible.",
+   "value": 0
+  },
+  "fuel_cost_targets": {
+   "source": "Calibration targets for mean fuel plus variable O&M cost ($/MWh) carried over from GOOD 1.x; source not recorded. Nuclear is no longer rescaled (see assign_fuel_costs).",
+   "value": {
+    "Coal": 23.0,
+    "Oil": 32.0
+   }
+  },
+  "hydro": {
+   "source": "Monthly capacity factors from capacity_factor.csv become a daily energy budget; regions without that table use a flat 0.4 (ASSUMPTION).",
+   "value": {
+    "capacity_factor_without_profile": 0.4,
+    "energy_budget_window": 24
+   }
+  },
+  "new_battery": {
+   "source": "EPA Platform v6 Table 4-35 (AEO 2018), 2023 vintage, 2016$: $1,977/kW for a 4-hour system, $35/kW-yr FOM, $7.1/MWh VOM, 85% efficiency. Lifetime is an ASSUMPTION.",
+   "value": {
+    "capex_cost": 1977000.0,
+    "duration": 4.0,
+    "fom_cost": 35000.0,
+    "lifetime": 15.0,
+    "operating_cost": 7.1,
+    "round_trip_efficiency": 0.85
+   }
+  },
+  "pumped_hydro": {
+   "source": "PLACEHOLDER: EIA-860 does not report pumped-storage energy capacity.",
+   "value": {
+    "duration": 10.0,
+    "round_trip_efficiency": 0.8
+   }
+  },
+  "real_discount_rate": {
+   "source": "Real rate at which a 20-year capital recovery factor equals the 9.78% charge rate (EPA Platform v6 Tables 10-9 and 10-12).",
+   "value": 0.0746
+  },
+  "renewable_capital_charge_rate": {
+   "source": "EPA Platform v6 Table 10-9, blended real capital charge rate for wind, solar and geothermal, 2023.",
+   "value": 0.0978
+  },
+  "transmission_loss": {
+   "source": "EPA Platform v6 section 3.3.4.",
+   "value": {
+    "WECC": 0.028,
+    "other": 0.024
+   }
+  }
+ },
+ "seed": 0,
+ "units": {
+  "capex_capacity": "MW",
+  "capex_cost": "$/MW",
+  "dollar_year": 2016,
+  "duration": "h",
+  "emissions (nox, so2, co2, ch4, n2o, pm)": "kg/MWh",
+  "fom_cost": "$/MW-yr",
+  "heat_rate": "Btu/kWh",
+  "installed_capacity": "MW",
+  "operating_cost": "$/MWh",
+  "profiles": "per-unit, 8760 hourly values"
+ }
+}
