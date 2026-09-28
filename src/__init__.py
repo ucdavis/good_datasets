@@ -1,9 +1,5 @@
-# __init__.py
+# Helpers for building GOOD datasets; see build.py.
 
-from . import utilities # Generally useful stuff
-from . import progress_bar # Progress bar for status tracking
-
-# Sub-modules
-from . import inputs # Process raw inputs into JSON data
-from . import graph # Graph utilities not in NetworkX
-from . import build
+from . import utilities  # JSON helpers
+from . import inputs  # Load raw tables listed in a codex file
+from . import build  # Assemble GOOD graphs from processed data
