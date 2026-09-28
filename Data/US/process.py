@@ -387,7 +387,9 @@ def format_profiles(profiles, potential, verbose=False):
             weights = weights if weights.sum() > 0 else np.ones(len(entries))
             stacked = np.vstack([p for p, _ in entries])
 
-            data[profile_key(region, kind, 'mean')] = weights @ stacked / weights.sum()
+            # Elementwise multiply and sum rather than a matrix product: BLAS libraries
+            # differ between platforms, and their rounding differences changed results.
+            data[profile_key(region, kind, 'mean')] = (stacked * weights[:, None]).sum(axis=0) / weights.sum()
 
     for _, row in profiles['load'].iterrows():
 

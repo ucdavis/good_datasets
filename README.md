@@ -87,12 +87,13 @@ them. These are placeholders or assumptions:
 
 ```bash
 pytest -q                 # unit tests and checks on Data/US/Processed
-python build.py --check   # a fresh build must match Data/US/Processed exactly
+python build.py --check   # a fresh build must match Data/US/Processed
 ```
 
 CI runs both. The build is deterministic: missing costs are filled by sampling
 with a fixed seed, and hour columns are selected by name, so results do not
-depend on the pandas version.
+depend on the pandas version. The check allows numbers to differ in their last
+written digit, because floating-point results vary slightly across platforms.
 
 ## Changes in GOOD 2.x format (2026)
 

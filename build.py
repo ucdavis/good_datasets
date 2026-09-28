@@ -118,8 +118,42 @@ def build_graphs(path, output):
     good.utilities.write_json(policies, os.path.join(output, 'policies.json'), indent=2)
 
 
+def _close(a, b, absolute):
+    '''Equal JSON values, with numbers allowed to differ by rounding in the last written digit.'''
+
+    if isinstance(a, dict) and isinstance(b, dict):
+
+        return a.keys() == b.keys() and all(_close(a[k], b[k], absolute) for k in a)
+
+    if isinstance(a, list) and isinstance(b, list):
+
+        return len(a) == len(b) and all(_close(x, y, absolute) for x, y in zip(a, b))
+
+    numbers = (int, float)
+
+    if isinstance(a, numbers) and isinstance(b, numbers) and not isinstance(a, bool) and not isinstance(b, bool):
+
+        return a == b or abs(a - b) <= max(absolute, 1e-9 * max(abs(a), abs(b)))
+
+    return a == b
+
+
+def _same(built, committed, absolute):
+
+    if filecmp.cmp(built, committed, shallow=False):
+
+        return True
+
+    return _close(good.utilities.read_json(built), good.utilities.read_json(committed), absolute)
+
+
 def check(seed):
-    '''Rebuild into a temporary folder and report files that differ from Data/US/Processed.'''
+    '''
+    Rebuild into a temporary folder and report files that differ from Data/US/Processed.
+
+    Numbers may differ in the last written digit (1e-5 for profiles, one part in
+    1e9 otherwise), since floating-point results can vary slightly across platforms.
+    '''
 
     with tempfile.TemporaryDirectory() as temporary:
 
@@ -128,10 +162,15 @@ def check(seed):
         comparison = filecmp.dircmp(temporary, PROCESSED)
         profiles = filecmp.dircmp(os.path.join(temporary, 'profiles'), os.path.join(PROCESSED, 'profiles'))
 
+        top = [f for f in comparison.common_files
+               if not _same(os.path.join(temporary, f), os.path.join(PROCESSED, f), 0.0)]
+        series = [f for f in profiles.common_files
+                  if not _same(os.path.join(temporary, 'profiles', f), os.path.join(PROCESSED, 'profiles', f), 1.5e-5)]
+
         problems = (
-            [f'differs: {f}' for f in comparison.diff_files]
+            [f'differs: {f}' for f in top]
             + [f'missing from Processed: {f}' for f in comparison.left_only]
-            + [f'differs: profiles/{f}' for f in profiles.diff_files]
+            + [f'differs: profiles/{f}' for f in series]
             + [f'missing from Processed: profiles/{f}' for f in profiles.left_only]
             + [f'not produced by the build: profiles/{f}' for f in profiles.right_only]
         )
